@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ListingGrid from '@/components/features/listings/ListingGrid';
@@ -17,16 +16,10 @@ import { useAuth } from '@/lib/AuthContext';
 import { useListings } from '@/lib/hooks/useListings';
 import { useWishlist, useWishlistMutations } from '@/lib/hooks/useWishlist';
 
-const CATEGORIES = [
-  'All',
-  'Books',
-  'Electronics',
-  'Fashion',
-  'Sports',
-  'Furniture',
-  'Other',
-];
+// Category options
+const CATEGORIES = ['All', 'Books', 'Electronics', 'Fashion', 'Sports', 'Furniture', 'Other'];
 
+// Sorting options
 const SORT_OPTIONS = [
   { value: 'created_at.desc', label: 'Newest First' },
   { value: 'created_at.asc', label: 'Oldest First' },
@@ -34,26 +27,43 @@ const SORT_OPTIONS = [
   { value: 'price.desc', label: 'Price: High to Low' },
 ];
 
+// Define Listing type
+interface Listing {
+  id: string;
+  title: string;
+  price: number;
+  created_at: string;
+  seller: string;
+}
+
 export default function Marketplace() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'created_at.desc');
 
-  // Fetch listings with React Query
-  const { data: listings = [], isLoading, error } = useListings({ 
+  // Fetch listings using custom hook
+  const { data: listingsData = [], isLoading, error } = useListings({
     category: selectedCategory === 'All' ? undefined : selectedCategory,
     searchQuery,
-    sortBy
+    sortBy,
   });
 
-  // Get user's wishlist
-  const { data: wishlistedItems = new Set<string>() } = useWishlist();
-  
+  // Ensure listings have necessary properties
+  const listings: Listing[] = listingsData.map((data) => ({
+    ...data,
+    created_at: data.created_at || new Date().toISOString(), // Ensure valid timestamp
+    seller: data.seller || 'Unknown', // Default value
+  }));
+
+  // Fetch wishlisted items & ensure it's a Set<string>
+  const { data: wishlistedItemsRaw = [] } = useWishlist();
+  const wishlistedItems = new Set<string>(wishlistedItemsRaw as string[]);
+
   // Wishlist mutations
   const { addToWishlist, removeFromWishlist } = useWishlistMutations();
 
