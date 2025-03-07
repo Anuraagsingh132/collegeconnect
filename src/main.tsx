@@ -1,12 +1,15 @@
+
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { AuthProvider } from './lib/AuthContext'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as Sonner } from '@/components/ui/sonner'
 
 createRoot(document.getElementById("root")!).render(
-  <AuthProvider>
+  <>
     <App />
     <Toaster />
-  </AuthProvider>
+    <Sonner position="top-right" />
+  </>
 );

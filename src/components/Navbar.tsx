@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, ShoppingBag, Heart, MessageCircle, LogOut, PlusCircle } from 'lucide-react';
+import { Menu, X, User, ShoppingBag, Heart, MessageCircle, LogOut, PlusCircle, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
@@ -64,6 +64,9 @@ const Navbar: React.FC = () => {
             <Link to="/explore" className="text-sm font-medium hover:text-primary transition-colors">
               Explore
             </Link>
+            <Link to="/marketplace" className="text-sm font-medium hover:text-primary transition-colors">
+              Marketplace
+            </Link>
             <Link to="/categories" className="text-sm font-medium hover:text-primary transition-colors">
               Categories
             </Link>
@@ -111,6 +114,10 @@ const Navbar: React.FC = () => {
                       <ShoppingBag className="mr-2 h-4 w-4" />
                       My Listings
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/marketplace")}>
+                      <Store className="mr-2 h-4 w-4" />
+                      Marketplace
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/create-listing")}>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Create Listing
@@ -156,6 +163,13 @@ const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Explore
+              </Link>
+              <Link 
+                to="/marketplace" 
+                className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Marketplace
               </Link>
               <Link 
                 to="/messages" 

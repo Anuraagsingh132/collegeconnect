@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, getCurrentUser } from './supabase';
 import { User } from '@supabase/supabase-js';
@@ -21,6 +22,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await getCurrentUser();
 
       if (error) {
@@ -143,18 +145,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setUserProfile(null);
+          toast({
+            title: "Signed out successfully",
+            description: "You have been signed out of your account.",
+          });
           return;
         }
 
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
-          const { data: profileData } = await supabase
+          toast({
+            title: "Signed in successfully",
+            description: "Welcome back!",
+          });
+          
+          // Fetch or create profile
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
 
-          if (profileData) {
+          if (profileError) {
+            if (profileError.code === 'PGRST116') {
+              // Create profile for new user
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert([
+                  {
+                    id: session.user.id,
+                    email: session.user.email,
+                    full_name: session.user.user_metadata.full_name || '',
+                    avatar_url: session.user.user_metadata.avatar_url || '',
+                    created_at: new Date().toISOString(),
+                  }
+                ]);
+
+              if (!insertError) {
+                const { data: newProfile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+                
+                setUserProfile(newProfile);
+              }
+            }
+          } else if (profileData) {
             setUserProfile(profileData);
           }
         }
@@ -171,15 +208,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('Error signing out:', error);
         toast({
           title: "Error signing out",
           description: error.message,
           variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Signed out successfully",
-          description: "You have been signed out of your account.",
         });
       }
     } catch (error) {
