@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Book, Laptop, Coffee, Backpack, Shirt, Home, MusicNote, Bike, Zap } from 'lucide-react';
+import { Book, Laptop, Coffee, Backpack, Shirt, Home, Music, Bike, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface CategoryItemProps {
@@ -35,7 +35,7 @@ const CategorySection: React.FC = () => {
     { icon: <Backpack className="h-7 w-7 text-foreground" />, name: 'Essentials', color: 'bg-green-100' },
     { icon: <Shirt className="h-7 w-7 text-foreground" />, name: 'Clothing', color: 'bg-pink-100' },
     { icon: <Home className="h-7 w-7 text-foreground" />, name: 'Housing', color: 'bg-amber-100' },
-    { icon: <MusicNote className="h-7 w-7 text-foreground" />, name: 'Music', color: 'bg-red-100' },
+    { icon: <Music className="h-7 w-7 text-foreground" />, name: 'Music', color: 'bg-red-100' },
     { icon: <Bike className="h-7 w-7 text-foreground" />, name: 'Transport', color: 'bg-cyan-100' },
     { icon: <Zap className="h-7 w-7 text-foreground" />, name: 'Services', color: 'bg-indigo-100' },
   ];
