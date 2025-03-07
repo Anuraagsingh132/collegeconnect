@@ -8,9 +8,10 @@ interface CategoryItemProps {
   name: string;
   color: string;
   index: number;
+  animationClass?: string;
 }
 
-const CategoryItem: React.FC<CategoryItemProps> = ({ icon, name, color, index }) => {
+const CategoryItem: React.FC<CategoryItemProps> = ({ icon, name, color, index, animationClass = '' }) => {
   return (
     <Link 
       to={`/explore?category=${name.toLowerCase()}`}
@@ -18,7 +19,7 @@ const CategoryItem: React.FC<CategoryItemProps> = ({ icon, name, color, index })
       style={{ '--index': index } as React.CSSProperties}
     >
       <div 
-        className={`w-16 h-16 sm:w-20 sm:h-20 ${color} rounded-2xl flex items-center justify-center mb-3 card-hover group-hover:scale-105 transition-all duration-300`}
+        className={`w-16 h-16 sm:w-20 sm:h-20 ${color} rounded-2xl flex items-center justify-center mb-3 card-hover group-hover:scale-105 transition-all duration-300 ${animationClass}`}
       >
         {icon}
       </div>
@@ -29,15 +30,60 @@ const CategoryItem: React.FC<CategoryItemProps> = ({ icon, name, color, index })
 
 const CategorySection: React.FC = () => {
   const categories = [
-    { icon: <Book className="h-7 w-7 text-foreground" />, name: 'Books', color: 'bg-blue-100' },
-    { icon: <Laptop className="h-7 w-7 text-foreground" />, name: 'Electronics', color: 'bg-purple-100' },
-    { icon: <Coffee className="h-7 w-7 text-foreground" />, name: 'Food', color: 'bg-orange-100' },
-    { icon: <Backpack className="h-7 w-7 text-foreground" />, name: 'Essentials', color: 'bg-green-100' },
-    { icon: <Shirt className="h-7 w-7 text-foreground" />, name: 'Clothing', color: 'bg-pink-100' },
-    { icon: <Home className="h-7 w-7 text-foreground" />, name: 'Housing', color: 'bg-amber-100' },
-    { icon: <Music className="h-7 w-7 text-foreground" />, name: 'Music', color: 'bg-red-100' },
-    { icon: <Bike className="h-7 w-7 text-foreground" />, name: 'Transport', color: 'bg-cyan-100' },
-    { icon: <Zap className="h-7 w-7 text-foreground" />, name: 'Services', color: 'bg-indigo-100' },
+    { 
+      icon: <Book className="h-7 w-7 text-foreground group-hover:animate-bounce-gentle" />, 
+      name: 'Books', 
+      color: 'bg-blue-100 dark:bg-blue-900/30',
+      animation: ''
+    },
+    { 
+      icon: <Laptop className="h-7 w-7 text-foreground group-hover:animate-pulse-light" />, 
+      name: 'Electronics', 
+      color: 'bg-purple-100 dark:bg-purple-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Coffee className="h-7 w-7 text-foreground group-hover:animate-bounce-gentle" />, 
+      name: 'Food', 
+      color: 'bg-orange-100 dark:bg-orange-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Backpack className="h-7 w-7 text-foreground group-hover:animate-float" />, 
+      name: 'Essentials', 
+      color: 'bg-green-100 dark:bg-green-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Shirt className="h-7 w-7 text-foreground group-hover:animate-float" />, 
+      name: 'Clothing', 
+      color: 'bg-pink-100 dark:bg-pink-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Home className="h-7 w-7 text-foreground group-hover:animate-pulse-light" />, 
+      name: 'Housing', 
+      color: 'bg-amber-100 dark:bg-amber-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Music className="h-7 w-7 text-foreground group-hover:animate-bounce-gentle" />, 
+      name: 'Music', 
+      color: 'bg-red-100 dark:bg-red-900/30',
+      animation: 'animate-pulse-light' 
+    },
+    { 
+      icon: <Bike className="h-7 w-7 text-foreground group-hover:animate-spin-slow" />, 
+      name: 'Transport', 
+      color: 'bg-cyan-100 dark:bg-cyan-900/30',
+      animation: '' 
+    },
+    { 
+      icon: <Zap className="h-7 w-7 text-foreground group-hover:animate-pulse-light" />, 
+      name: 'Services', 
+      color: 'bg-indigo-100 dark:bg-indigo-900/30',
+      animation: '' 
+    },
   ];
 
   return (
@@ -60,6 +106,7 @@ const CategorySection: React.FC = () => {
               name={category.name}
               color={category.color}
               index={i}
+              animationClass={category.animation}
             />
           ))}
         </div>

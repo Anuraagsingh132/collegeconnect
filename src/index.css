@@ -47,6 +47,45 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 20% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 224.3 76.3% 48%;
+  }
+
   * {
     @apply border-border selection:bg-primary/10 selection:text-primary;
   }
@@ -63,7 +102,7 @@
 
 @layer components {
   .glass {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm dark:bg-black/30 dark:border-white/10;
   }
   
   .glass-dark {
@@ -80,6 +119,28 @@
   
   .text-balance {
     text-wrap: balance;
+  }
+
+  .animated-gradient {
+    @apply bg-gradient-to-r from-primary via-primary/70 to-primary/50 bg-clip-text text-transparent;
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+  }
+
+  .neo-blur {
+    @apply backdrop-blur-xl bg-white/5 dark:bg-black/40 border border-white/10 dark:border-white/5;
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 

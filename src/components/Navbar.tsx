@@ -5,6 +5,7 @@ import { Menu, X, User, ShoppingBag, Heart } from 'lucide-react';
 import Button from './Button';
 import SearchBar from './SearchBar';
 import AuthModal from './AuthModal';
+import ThemeToggle from './ThemeToggle';
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -44,7 +45,7 @@ const Navbar: React.FC = () => {
         <div className="container mx-auto px-4 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <h1 className="text-xl font-display font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            <h1 className="text-xl font-display font-bold animated-gradient">
               CollegeMate
             </h1>
           </Link>
@@ -69,6 +70,8 @@ const Navbar: React.FC = () => {
           
           {/* Right Actions */}
           <div className="flex items-center space-x-3">
+            <ThemeToggle />
+            
             {isLoggedIn ? (
               <>
                 <Link to="/wishlist" className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Wishlist">
