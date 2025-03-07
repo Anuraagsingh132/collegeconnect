@@ -1,17 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, User, ShoppingBag, Heart } from 'lucide-react';
-import Button from './Button';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, User, ShoppingBag, Heart, MessageCircle, LogOut, PlusCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import SearchBar from './SearchBar';
-import AuthModal from './AuthModal';
 import ThemeToggle from './ThemeToggle';
+import { useAuth } from '@/lib/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, userProfile, signOut } = useAuth();
+  const navigate = useNavigate();
   
   // Handle scroll effect
   useEffect(() => {
@@ -72,20 +81,53 @@ const Navbar: React.FC = () => {
           <div className="flex items-center space-x-3">
             <ThemeToggle />
             
-            {isLoggedIn ? (
+            {user ? (
               <>
-                <Link to="/wishlist" className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Wishlist">
-                  <Heart className="h-5 w-5" />
+                <Link to="/messages" className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Messages">
+                  <MessageCircle className="h-5 w-5" />
                 </Link>
                 <Link to="/my-listings" className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="My Listings">
                   <ShoppingBag className="h-5 w-5" />
                 </Link>
-                <Link to="/profile" className="p-2 rounded-full hover:bg-secondary transition-colors" aria-label="Profile">
-                  <User className="h-5 w-5" />
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="rounded-full overflow-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none">
+                      <Avatar>
+                        <AvatarImage src={userProfile?.avatar_url || ""} />
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {userProfile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>{userProfile?.full_name || user.email}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/profile")}>
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/my-listings")}>
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      My Listings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/create-listing")}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Create Listing
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
-              <Button onClick={() => setAuthModalOpen(true)}>Sign In</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => navigate("/signin")}>Sign In</Button>
+                <Button onClick={() => navigate("/signup")}>Sign Up</Button>
+              </div>
             )}
             
             {/* Mobile Menu Toggle */}
@@ -116,33 +158,70 @@ const Navbar: React.FC = () => {
                 Explore
               </Link>
               <Link 
-                to="/categories" 
+                to="/messages" 
                 className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Categories
+                Messages
               </Link>
               <Link 
-                to="/about" 
+                to="/my-listings" 
                 className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                How It Works
+                My Listings
               </Link>
+              {user ? (
+                <>
+                  <Link 
+                    to="/profile" 
+                    className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <button 
+                    className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors text-left"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    to="/signin" 
+                    className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    to="/signup" 
+                    className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
               <Link 
-                to="/post-item" 
-                className="bg-primary text-white px-4 py-3 rounded-lg text-center font-medium hover:bg-primary/90 transition-colors"
+                to="/create-listing" 
+                className="bg-primary text-primary-foreground px-4 py-3 rounded-lg text-center font-medium hover:bg-primary/90 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Post an Item
+                Create Listing
               </Link>
             </div>
           </div>
         )}
       </header>
       
-      {/* Auth Modal */}
-      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      {/* Spacer for fixed header */}
+      <div className="h-16"></div>
     </>
   );
 };

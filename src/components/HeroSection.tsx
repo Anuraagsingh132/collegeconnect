@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ArrowRight, Sparkles, Rocket } from 'lucide-react';
-import Button from './Button';
+import { Button } from '@/components/ui/button';
 
 const HeroSection: React.FC = () => {
   return (

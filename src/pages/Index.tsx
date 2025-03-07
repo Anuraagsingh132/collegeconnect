@@ -6,7 +6,7 @@ import CategorySection from '../components/CategorySection';
 import FeaturedItems from '../components/FeaturedItems';
 import { ArrowRight, Heart, Shield, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Button from '../components/Button';
+import { Button } from '@/components/ui/button';
 
 const Index: React.FC = () => {
   return (

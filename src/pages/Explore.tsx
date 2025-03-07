@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import ItemCard from '../components/ItemCard';
 import SearchBar from '../components/SearchBar';
 import { Filter } from 'lucide-react';
-import Button from '../components/Button';
+import { Button } from '@/components/ui/button';
 
 // Sample data (in a real app, this would come from an API)
 const items = [

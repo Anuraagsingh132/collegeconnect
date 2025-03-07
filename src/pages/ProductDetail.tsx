@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import Button from '../components/Button';
+import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, Heart, Info, MessageCircle, Share2 } from 'lucide-react';
 
 const ProductDetail: React.FC = () => {
