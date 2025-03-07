@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -80,8 +81,8 @@ export default function CreateListing() {
     defaultValues: {
       title: "",
       price: "",
-      category: "",
-      condition: "",
+      category: "Books" as const, // Fix: Use a valid category instead of empty string
+      condition: "new" as const,  // Fix: Use a valid condition instead of empty string
       description: "",
       location: "",
     },
