@@ -40,7 +40,7 @@ export default function Marketplace() {
   
   const [listings, setListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [wishlistedItems, setWishlistedItems] = useState(new Set());
+  const [wishlistedItems, setWishlistedItems] = useState<Set<string>>(new Set());
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');

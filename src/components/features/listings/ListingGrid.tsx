@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Heart, HeartFilled, ImageOff, MapPin } from 'lucide-react';
+import { Loader2, Heart, ImageOff, MapPin } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useInView } from 'react-intersection-observer';
@@ -124,7 +124,7 @@ const ListingCard = memo(({ listing, onWishlistToggle, wishlistedItems, loadingS
                 {loadingStates[listing.id] ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : wishlistedItems.has(listing.id) ? (
-                  <HeartFilled className="h-5 w-5 text-primary" />
+                  <Heart className="h-5 w-5 text-primary fill-primary" />
                 ) : (
                   <Heart className="h-5 w-5" />
                 )}
@@ -176,7 +176,7 @@ export default function ListingGrid({
   listings, 
   isLoading = false, 
   onWishlistToggle,
-  wishlistedItems = new Set()
+  wishlistedItems = new Set<string>()
 }: ListingGridProps) {
   const { user } = useAuth();
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
