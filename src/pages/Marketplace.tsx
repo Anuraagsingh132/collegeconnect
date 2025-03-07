@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ListingGrid from '@/components/features/listings/ListingGrid';
@@ -53,10 +54,10 @@ export default function Marketplace() {
       try {
         let query = supabase
           .from('listings')
-          .select(\`
+          .select(`
             *,
             seller:profiles(id, full_name, avatar_url)
-          \`)
+          `)
           .eq('status', 'active');
 
         // Apply category filter
@@ -66,7 +67,7 @@ export default function Marketplace() {
 
         // Apply search query
         if (searchQuery) {
-          query = query.ilike('title', \`%\${searchQuery}%\`);
+          query = query.ilike('title', `%${searchQuery}%`);
         }
 
         // Apply sorting
