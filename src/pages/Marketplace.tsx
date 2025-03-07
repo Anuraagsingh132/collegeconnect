@@ -14,7 +14,8 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { useListings } from '@/lib/hooks/useListings';
+import { useWishlist, useWishlistMutations } from '@/lib/hooks/useWishlist';
 
 const CATEGORIES = [
   'All',
@@ -38,82 +39,23 @@ export default function Marketplace() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const [listings, setListings] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [wishlistedItems, setWishlistedItems] = useState<Set<string>>(new Set());
-
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'created_at.desc');
 
-  // Fetch listings with search and filters
-  useEffect(() => {
-    const fetchListings = async () => {
-      setIsLoading(true);
-      try {
-        let query = supabase
-          .from('listings')
-          .select(`
-            *,
-            seller:profiles(id, full_name, avatar_url)
-          `)
-          .eq('status', 'active');
+  // Fetch listings with React Query
+  const { data: listings = [], isLoading, error } = useListings({ 
+    category: selectedCategory === 'All' ? undefined : selectedCategory,
+    searchQuery,
+    sortBy
+  });
 
-        // Apply category filter
-        if (selectedCategory !== 'All') {
-          query = query.eq('category', selectedCategory);
-        }
-
-        // Apply search query
-        if (searchQuery) {
-          query = query.ilike('title', `%${searchQuery}%`);
-        }
-
-        // Apply sorting
-        const [column, order] = sortBy.split('.');
-        query = query.order(column, { ascending: order === 'asc' });
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        setListings(data || []);
-      } catch (error) {
-        console.error('Error fetching listings:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch listings. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchListings();
-  }, [searchQuery, selectedCategory, sortBy, toast]);
-
-  // Fetch wishlisted items
-  useEffect(() => {
-    const fetchWishlist = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('wishlists')
-          .select('listing_id')
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-
-        setWishlistedItems(new Set(data.map(item => item.listing_id)));
-      } catch (error) {
-        console.error('Error fetching wishlist:', error);
-      }
-    };
-
-    fetchWishlist();
-  }, [user]);
+  // Get user's wishlist
+  const { data: wishlistedItems = new Set<string>() } = useWishlist();
+  
+  // Wishlist mutations
+  const { addToWishlist, removeFromWishlist } = useWishlistMutations();
 
   // Update URL params when filters change
   useEffect(() => {
@@ -124,23 +66,41 @@ export default function Marketplace() {
     setSearchParams(params);
   }, [searchQuery, selectedCategory, sortBy, setSearchParams]);
 
+  // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     setSearchQuery(formData.get('search') as string);
   };
 
+  // Handle wishlist toggling
   const handleWishlistToggle = (listingId: string) => {
-    setWishlistedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(listingId)) {
-        newSet.delete(listingId);
-      } else {
-        newSet.add(listingId);
-      }
-      return newSet;
-    });
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to add items to your wishlist.',
+        variant: 'default',
+      });
+      return;
+    }
+
+    if (wishlistedItems.has(listingId)) {
+      removeFromWishlist.mutate(listingId);
+    } else {
+      addToWishlist.mutate(listingId);
+    }
   };
+
+  // Show error if listings fetch failed
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch listings. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   return (
     <div className="container py-8 space-y-6">
