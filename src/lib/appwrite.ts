@@ -19,12 +19,12 @@ export const storage = new Storage(client);
 export const teams = new Teams(client);
 
 // Authentication functions
-export const signUp = async (email: string, password: string, name: string) => {
+export const signUp = async (email: string, password: string, name: string, onSuccess?: () => Promise<void>) => {
     try {
         // Create a new user with a unique ID
         const user = await account.create(ID.unique(), email, password, name);
         // Automatically sign in after registration using the correct method
-        await signIn(email, password);
+        const signInResult = await signIn(email, password, onSuccess);
         return { data: user, error: null };
     } catch (error) {
         console.error('Error in signUp:', error);
@@ -32,10 +32,16 @@ export const signUp = async (email: string, password: string, name: string) => {
     }
 };
 
-export const signIn = async (email: string, password: string) => {
+export const signIn = async (email: string, password: string, onSuccess?: () => Promise<void>) => {
     try {
         // Use the correct method for Appwrite v1.5+
         const session = await account.createEmailPasswordSession(email, password);
+        
+        // If a success callback was provided, call it to refresh auth state
+        if (onSuccess) {
+            await onSuccess();
+        }
+        
         return { data: session, error: null };
     } catch (error) {
         console.error('Error in signIn:', error);
@@ -43,7 +49,7 @@ export const signIn = async (email: string, password: string) => {
     }
 };
 
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (onSuccess?: () => Promise<void>) => {
     try {
         // Updated to use correct method and ensure proper redirects
         const session = await account.createOAuth2Session(
@@ -51,6 +57,13 @@ export const signInWithGoogle = async () => {
             `${window.location.origin}/explore`, // Success URL
             `${window.location.origin}/signin`   // Failure URL
         );
+        
+        // Note: This part may not execute immediately due to redirect
+        // But we include it for completeness
+        if (onSuccess) {
+            await onSuccess();
+        }
+        
         return { data: session, error: null };
     } catch (error) {
         console.error('Error in signInWithGoogle:', error);
