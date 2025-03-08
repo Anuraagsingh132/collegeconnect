@@ -39,7 +39,10 @@ export default function SignIn() {
           title: "Welcome back!",
           description: "You have successfully signed in.",
         });
-        navigate("/explore");
+        
+        setTimeout(() => {
+          window.location.href = "/explore";
+        }, 500);
       }
     } catch (error: any) {
       console.error("Unexpected error:", error);
