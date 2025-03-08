@@ -40,7 +40,10 @@ export default function SignUp() {
           title: "Welcome!",
           description: "Your account has been created successfully.",
         });
-        navigate("/explore");
+        
+        setTimeout(() => {
+          window.location.href = "/explore";
+        }, 500);
       }
     } catch (error: any) {
       console.error("Unexpected error:", error);
