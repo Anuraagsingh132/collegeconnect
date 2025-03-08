@@ -45,7 +45,6 @@ const listingFormSchema = z.object({
   }),
   description: z
     .string()
-    .min(20, { message: 'Description must be at least 20 characters' })
     .max(2000, { message: 'Description must be less than 2000 characters' }),
 });
 
@@ -89,92 +88,18 @@ export default function CreateListing() {
     },
   });
 
-  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   const MAX_IMAGES = 8;
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-  const MAX_DIMENSION = 2048;
 
   const validateImage = async (file: File): Promise<{ valid: boolean; error?: string }> => {
-    console.log(`Validating image: ${file.name}, type: ${file.type}, size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+    console.log(`Validating image: ${file.name}, type: ${file.type}`);
     
     if (!ALLOWED_TYPES.includes(file.type)) {
       console.log(`Image validation failed: ${file.name} - Invalid type ${file.type}`);
       return { valid: false, error: 'Only JPG, PNG and WebP images are allowed' };
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      console.log(`Image validation failed: ${file.name} - Size too large ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
-      return { valid: false, error: `Image size should be less than 5MB (current: ${(file.size / (1024 * 1024)).toFixed(2)}MB)` };
-    }
-
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        console.log(`Image loaded for validation: ${file.name}, dimensions: ${img.width}x${img.height}`);
-        URL.revokeObjectURL(img.src);
-        if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-          console.log(`Image validation failed: ${file.name} - Dimensions too large ${img.width}x${img.height}`);
-          resolve({ 
-            valid: false, 
-            error: `Image dimensions should not exceed ${MAX_DIMENSION}x${MAX_DIMENSION} (current: ${img.width}x${img.height})` 
-          });
-        } else {
-          console.log(`Image validated successfully: ${file.name}`);
-          resolve({ valid: true });
-        }
-      };
-      img.onerror = () => {
-        console.log(`Image validation failed: ${file.name} - Could not load image`);
-        URL.revokeObjectURL(img.src);
-        resolve({ valid: false, error: 'Invalid image file' });
-      };
-    });
-  };
-
-  const compressImage = async (file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(img.src);
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
-
-        // Scale down if necessary
-        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-          if (width > height) {
-            height = Math.round((height * MAX_DIMENSION) / width);
-            width = MAX_DIMENSION;
-          } else {
-            width = Math.round((width * MAX_DIMENSION) / height);
-            height = MAX_DIMENSION;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              resolve(file); // Fallback to original if compression fails
-            }
-          },
-          'image/jpeg',
-          0.8
-        );
-      };
-      img.onerror = () => resolve(file);
-    });
+    return { valid: true };
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,29 +117,18 @@ export default function CreateListing() {
       return;
     }
 
-    // Process each file
-    const processedFiles: File[] = [];
+    // Process each file - just validate type
+    const validFiles: File[] = [];
     const errors: string[] = [];
-    const processPromises = newFiles.map(async (file) => {
-      try {
-        const validation = await validateImage(file);
-        if (!validation.valid) {
-          errors.push(`${file.name}: ${validation.error}`);
-          return null;
-        }
-
-        const compressedFile = await compressImage(file);
-        return compressedFile;
-      } catch (error) {
-        errors.push(`${file.name}: Failed to process image`);
-        return null;
+    
+    for (const file of newFiles) {
+      const validation = await validateImage(file);
+      if (validation.valid) {
+        validFiles.push(file);
+      } else {
+        errors.push(`${file.name}: ${validation.error}`);
       }
-    });
-
-    const processed = await Promise.all(processPromises);
-    processed.forEach(file => {
-      if (file) processedFiles.push(file);
-    });
+    }
 
     // Show errors if any
     if (errors.length > 0) {
@@ -226,9 +140,9 @@ export default function CreateListing() {
     }
 
     // Add valid images and create preview URLs
-    if (processedFiles.length > 0) {
-      const newUrls = processedFiles.map(file => URL.createObjectURL(file));
-      setImages(prev => [...prev, ...processedFiles]);
+    if (validFiles.length > 0) {
+      const newUrls = validFiles.map(file => URL.createObjectURL(file));
+      setImages(prev => [...prev, ...validFiles]);
       setImageUrls(prev => [...prev, ...newUrls]);
     }
 
@@ -550,12 +464,14 @@ const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
                             <span className={`text-xs ${uploadingImages ? 'text-muted-foreground' : 'text-primary'}`}>
                               Add Image
                             </span>
-                            <input
+                            <Input
                               type="file"
-                              accept="image/jpeg,image/png,image/webp"
-                              className="hidden"
-                              onChange={handleImageUpload}
+                              accept="image/*"
+                              capture="user"
                               multiple
+                              onChange={handleImageUpload}
+                              className="hidden"
+                              id="image-upload"
                               disabled={uploadingImages}
                             />
                           </label>
