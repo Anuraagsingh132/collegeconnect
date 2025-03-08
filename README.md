@@ -1,69 +1,89 @@
-# Welcome to your Lovable project
+# CollegeMate by StreamVerse
 
-## Project info
+## Overview
+CollegeMate is a **campus-focused marketplace** designed for college students to buy, sell, and trade items securely within their campus community.
 
-**URL**: https://lovable.dev/projects/4027df63-33b2-4d0a-ab17-50c684155fb0
+## Features
+- **Campus-Focused Marketplace** – Buy, sell, and trade within your college.
+- **Safe Messaging** – Communicate securely without sharing personal details.
+- **Great Deals** – Find affordable items or sell unused belongings.
+- **Secure Transactions** – User verification and safe in-person exchange recommendations.
 
-## How can I edit this code?
+## How It Works
+### Step 1: Create an Account
+Sign up with your **college email** to join your campus marketplace.
 
-There are several ways of editing your application.
+### Step 2: Browse or List Items
+Search for items you need or **list items for sale** with photos and descriptions.
 
-**Use Lovable**
+### Step 3: Connect with Buyers/Sellers
+Use the built-in **secure messaging system** to arrange a meetup.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4027df63-33b2-4d0a-ab17-50c684155fb0) and start prompting.
+### Step 4: Complete the Transaction
+Meet in a **safe campus location** to exchange the item and payment.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Frequently Asked Questions
+### Is CollegeMate free to use?
+Yes! CollegeMate is **completely free** for students. No listing or transaction fees.
 
-**Use your preferred IDE**
+### How do I know if an item is still available?
+Active listings are marked as **"Available."** Message the seller to confirm availability.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Is it safe to meet with strangers?
+We recommend **meeting in public** campus locations during the day and informing a friend before meeting.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### What payment methods are recommended?
+- **Cash** for in-person exchanges.
+- **Mobile payment apps** (e.g., Paytm, Google Pay, Venmo).
+- **Avoid wire transfers** and non-secure methods.
 
-Follow these steps:
+### What items are prohibited?
+Illegal items, weapons, alcohol, drugs, and counterfeit goods are **strictly prohibited**. See our Terms of Service for details.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Getting Started
+1. Clone this repository:
+   ```sh
+   git clone <YOUR_GIT_URL>
+   ```
+2. Navigate to the project folder:
+   ```sh
+   cd CollegeMate
+   ```
+3. Install dependencies:
+   ```sh
+   npm install
+   ```
+4. Run the development server:
+   ```sh
+   npm run dev
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Deployment
+To deploy CollegeMate, we recommend using **Netlify** or **Vercel**.
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Contributing
+We welcome contributions! To contribute:
+1. Fork the repository.
+2. Create a new branch:
+   ```sh
+   git checkout -b feature-branch
+   ```
+3. Commit changes:
+   ```sh
+   git commit -m "Added new feature"
+   ```
+4. Push changes:
+   ```sh
+   git push origin feature-branch
+   ```
+5. Open a **Pull Request** for review.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## License
+This project is licensed under the **MIT License**.
 
-**Edit a file directly in GitHub**
+## Contact
+For questions or support, reach out via **[StreamVerse](https://streamverse.biz)**.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
+Ready to start? 🚀 Join **CollegeMate** today and **buy & sell** with confidence! 🎓
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/4027df63-33b2-4d0a-ab17-50c684155fb0) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
