@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -197,15 +197,19 @@ export default function MyListings() {
     <Card key={listing.$id} className="overflow-hidden">
       <div className="aspect-video w-full overflow-hidden bg-muted">
         {listing.images && listing.images.length > 0 ? (
-          <img
-            src={listing.images[0]}
-            alt={listing.title}
-            className="h-full w-full object-cover"
-          />
+          <Link to={`/product/${listing.$id}`}>
+            <img
+              src={listing.images[0]}
+              alt={listing.title}
+              className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+            />
+          </Link>
         ) : (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            No image
-          </div>
+          <Link to={`/product/${listing.$id}`}>
+            <div className="flex h-full items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors">
+              No image
+            </div>
+          </Link>
         )}
       </div>
       <CardHeader className="p-4">
