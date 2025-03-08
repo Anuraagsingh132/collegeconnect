@@ -102,12 +102,49 @@ export default function CreateListing() {
     return { valid: true };
   };
 
+  const compressImage = async (file: File): Promise<File> => {
+    try {
+      const imageCompression = await import('browser-image-compression');
+      
+      console.log(`Compressing image: ${file.name}, original size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
+      
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: file.type, // Preserve original file type
+      };
+      
+      // Get compressed blob
+      const compressedBlob = await imageCompression.default(file, options);
+      
+      // Convert blob to array buffer
+      const arrayBuffer = await compressedBlob.arrayBuffer();
+      
+      // Create new File with array buffer
+      const compressedFile = new File(
+        [arrayBuffer],
+        file.name,
+        {
+          type: file.type,
+          lastModified: Date.now(),
+        }
+      );
+      
+      console.log(`Compression complete: ${file.name}, new size: ${(compressedFile.size / (1024 * 1024)).toFixed(2)} MB`);
+      
+      return compressedFile;
+    } catch (error) {
+      console.error("Image compression failed:", error);
+      return file; // Return original file if compression fails
+    }
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return;
     
     const newFiles = Array.from(event.target.files);
     
-    // Check total number of images
     if (images.length + newFiles.length > MAX_IMAGES) {
       toast({
         title: 'Too many images',
@@ -117,20 +154,33 @@ export default function CreateListing() {
       return;
     }
 
-    // Process each file - just validate type
+    setUploadingImages(true);
+    
     const validFiles: File[] = [];
     const errors: string[] = [];
     
     for (const file of newFiles) {
       const validation = await validateImage(file);
       if (validation.valid) {
-        validFiles.push(file);
+        try {
+          if (file.size > 2 * 1024 * 1024) {
+            toast({
+              title: "Compressing image",
+              description: `Optimizing ${file.name} for upload...`,
+            });
+          }
+          
+          const compressedFile = await compressImage(file);
+          validFiles.push(compressedFile);
+        } catch (err) {
+          console.error("Compression error:", err);
+          validFiles.push(file);
+        }
       } else {
         errors.push(`${file.name}: ${validation.error}`);
       }
     }
 
-    // Show errors if any
     if (errors.length > 0) {
       toast({
         title: 'Some images could not be added',
@@ -139,21 +189,19 @@ export default function CreateListing() {
       });
     }
 
-    // Add valid images and create preview URLs
     if (validFiles.length > 0) {
       const newUrls = validFiles.map(file => URL.createObjectURL(file));
       setImages(prev => [...prev, ...validFiles]);
       setImageUrls(prev => [...prev, ...newUrls]);
     }
 
-    // Reset input
+    setUploadingImages(false);
     event.target.value = '';
   };
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
     setImageUrls(prev => {
-      // Revoke the object URL to prevent memory leaks
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
@@ -176,7 +224,6 @@ export default function CreateListing() {
             uploadedImageIds.push(fileId);
         }
         
-        // Update the listing with image IDs
         await databases.updateDocument(
             APPWRITE_DATABASE_ID,
             APPWRITE_LISTINGS_COLLECTION_ID,
@@ -193,96 +240,86 @@ export default function CreateListing() {
     }
   };
   
-  // Extra useEffect for cleanup after navigation
-useEffect(() => {
-  return () => {
-    // Clean up when component unmounts
-    imageUrls.forEach(url => URL.revokeObjectURL(url));
-  };
-}, [imageUrls]);
-
-const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
-  // Check authentication
-  if (!user) {
-    toast({
-      title: "Authentication required",
-      description: "Please sign in to create a listing.",
-      variant: "destructive",
-    });
-    navigate("/signin");
-    return;
-  }
-
-  // Prevent double submission
-  if (isLoading) {
-    console.log('Submission already in progress, preventing double submission');
-    return;
-  }
-  
-  setIsLoading(true);
-  console.log('Form submission started with values:', values);
-  
-  try {
-    // Validate price
-    const price = parseFloat(values.price);
-    if (isNaN(price)) {
-      throw new Error("Invalid price format");
-    }
-    
-    // Prepare listing data
-    const listingData = {
-      title: values.title.trim(),
-      price: price,
-      category: values.category,
-      condition: values.condition,
-      description: values.description.trim(),
-      status: 'active' as const,
+  useEffect(() => {
+    return () => {
+      imageUrls.forEach(url => URL.revokeObjectURL(url));
     };
-    
-    console.log('Prepared listing data:', listingData);
-    console.log(`Attempting to upload ${images.length} images and create listing...`);
-    
-    // Use our new listing service to create the listing
-    const result = await createListing(
-      listingData,
-      images,
-      user
-    );
-    
-    if (!result) {
-      throw new Error("Failed to create listing. Please try again.");
+  }, [imageUrls]);
+
+  const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create a listing.",
+        variant: "destructive",
+      });
+      navigate("/signin");
+      return;
+    }
+
+    if (isLoading) {
+      console.log('Submission already in progress, preventing double submission');
+      return;
     }
     
-    console.log('SUCCESS! Listing created successfully:', result);
+    setIsLoading(true);
+    console.log('Form submission started with values:', values);
     
-    // Reset form and clear images
-    form.reset();
-    setImages([]);
-    setImageUrls([]);
-    
-    // Show success toast
-    toast({
-      title: "Success!",
-      description: "Your listing has been created successfully.",
-    });
-    
-    // Navigate after a short delay so user can see the toast
-    setTimeout(() => {
-      console.log('Navigating to marketplace...');
+    try {
+      const price = parseFloat(values.price);
+      if (isNaN(price)) {
+        throw new Error("Invalid price format");
+      }
+      
+      const listingData = {
+        title: values.title.trim(),
+        price: price,
+        category: values.category,
+        condition: values.condition,
+        description: values.description.trim(),
+        status: 'active' as const,
+      };
+      
+      console.log('Prepared listing data:', listingData);
+      console.log(`Attempting to upload ${images.length} images and create listing...`);
+      
+      const result = await createListing(
+        listingData,
+        images,
+        user
+      );
+      
+      if (!result) {
+        throw new Error("Failed to create listing. Please try again.");
+      }
+      
+      console.log('SUCCESS! Listing created successfully:', result);
+      
+      form.reset();
+      setImages([]);
+      setImageUrls([]);
+      
+      toast({
+        title: "Success!",
+        description: "Your listing has been created successfully.",
+      });
+      
+      setTimeout(() => {
+        console.log('Navigating to marketplace...');
+        setIsLoading(false);
+        navigate('/marketplace');
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Error creating listing:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create listing. Please try again.",
+        variant: "destructive",
+      });
       setIsLoading(false);
-      navigate('/marketplace');
-    }, 1500);
-    
-  } catch (error: any) {
-    console.error('Error creating listing:', error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to create listing. Please try again.",
-      variant: "destructive",
-    });
-    setIsLoading(false);
-  }
-};
+    }
+  };
 
   if (!user) {
     return (
