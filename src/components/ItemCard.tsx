@@ -66,22 +66,26 @@ const ItemCard: React.FC<ItemCardProps> = ({
     <div className="group relative transition-all duration-300 h-full">
       <div className="aspect-square overflow-hidden rounded-xl relative">
         {image ? (
-          <img 
-            src={getImageSource(image)} 
-            alt={title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={(e) => {
-              console.error(`Failed to load image: ${image}`);
-              const target = e.target as HTMLImageElement;
-              target.onerror = null;
-              target.src = ''; // Reset src to avoid infinite error loop
-              target.alt = 'Image not available';
-            }}
-          />
+          <Link to={`/product/${id}`}>
+            <img 
+              src={getImageSource(image)} 
+              alt={title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                console.error(`Failed to load image: ${image}`);
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = ''; // Reset src to avoid infinite error loop
+                target.alt = 'Image not available';
+              }}
+            />
+          </Link>
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-secondary">
-            <p className="text-muted-foreground">No image</p>
-          </div>
+          <Link to={`/product/${id}`}>
+            <div className="w-full h-full flex items-center justify-center bg-secondary">
+              <p className="text-muted-foreground">No image</p>
+            </div>
+          </Link>
         )}
         
         {/* Actions */}
