@@ -1,7 +1,7 @@
-
 import React from 'react';
-import { ArrowRight, Sparkles, Rocket } from 'lucide-react';
+import { ArrowRight, Sparkles, Rocket, UserCircle2, User, Users, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 const HeroSection: React.FC = () => {
   return (
@@ -30,24 +30,39 @@ const HeroSection: React.FC = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <Button size="lg" className="w-full sm:w-auto group">
-              <Rocket className="mr-2 h-4 w-4 group-hover:animate-bounce-gentle" />
-              <span>Explore Listings</span>
+            <Button size="lg" className="w-full sm:w-auto group" asChild>
+              <Link to="/explore">
+                <Rocket className="mr-2 h-4 w-4 group-hover:animate-bounce-gentle" />
+                <span>Explore Listings</span>
+              </Link>
             </Button>
             <Button 
               variant="outline" 
               size="lg" 
               className="w-full sm:w-auto group"
+              asChild
             >
-              <span>Post an Item</span>
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <Link to="/create-listing">
+                <span>Post an Item</span>
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
             </Button>
           </div>
           
           <div className="mt-16 flex items-center gap-6 animate-fade-in" style={{ animationDelay: '300ms' }}>
             <div className="flex -space-x-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-primary/10 dark:bg-primary/20" />
+              {[
+                { icon: User, color: 'text-green-500' },
+                { icon: UserCircle2, color: 'text-blue-500' },
+                { icon: Users, color: 'text-purple-500' },
+                { icon: GraduationCap, color: 'text-orange-500' }
+              ].map((item, i) => (
+                <div 
+                  key={i} 
+                  className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-background flex items-center justify-center"
+                >
+                  <item.icon className={`h-4 w-4 ${item.color}`} />
+                </div>
               ))}
             </div>
             <div className="text-sm">

@@ -1,12 +1,20 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
+import { setupAppwriteResources } from './lib/setup';
 import { AuthProvider } from './lib/AuthContext'
 import { Toaster } from '@/components/ui/toaster'
 
-createRoot(document.getElementById("root")!).render(
+// Setup Appwrite resources (buckets) on application startup
+setupAppwriteResources()
+  .catch(console.error);
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <AuthProvider>
-    <App />
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
     <Toaster />
   </AuthProvider>
 );

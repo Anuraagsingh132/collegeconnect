@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Book, Laptop, Coffee, Backpack, Shirt, Home, Music, Bike, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -14,7 +13,7 @@ interface CategoryItemProps {
 const CategoryItem: React.FC<CategoryItemProps> = ({ icon, name, color, index, animationClass = '' }) => {
   return (
     <Link 
-      to={`/explore?category=${name.toLowerCase()}`}
+      to={`/explore/${name}`}
       className="flex flex-col items-center group"
       style={{ '--index': index } as React.CSSProperties}
     >

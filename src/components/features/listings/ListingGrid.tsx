@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Heart, HeartFilled, ImageOff } from 'lucide-react';
+import { Loader2, Heart, HeartOff, ImageOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { databases } from '@/lib/appwrite';
 import { useInView } from 'react-intersection-observer';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+    APPWRITE_DATABASE_ID,
+    APPWRITE_LISTINGS_COLLECTION_ID 
+} from '@/lib/config';
 
 interface Listing {
   id: string;
@@ -98,9 +102,9 @@ const ListingCard = memo(({ listing, onWishlistToggle, wishlistedItems, loadingS
               {loadingStates[listing.id] ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : wishlistedItems.has(listing.id) ? (
-                <HeartFilled className="h-5 w-5 text-primary" />
+                <Heart className="h-5 w-5 text-primary" />
               ) : (
-                <Heart className="h-5 w-5" />
+                <HeartOff className="h-5 w-5" />
               )}
             </Button>
           )}
@@ -146,71 +150,49 @@ export default function ListingGrid({
 }: ListingGridProps) {
   const { user } = useAuth();
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
+  const { toast } = useToast();
 
-  const handleWishlistClick = async (listingId: string) => {
-    if (!user) return;
-    
-    setLoadingStates(prev => ({ ...prev, [listingId]: true }));
-    
+  const handleFavorite = async (listingId: string) => {
     try {
-      if (wishlistedItems.has(listingId)) {
-        const { error } = await supabase
-          .from('wishlists')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('listing_id', listingId);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('wishlists')
-          .insert([{ user_id: user.id, listing_id: listingId }]);
-
-        if (error) throw error;
-      }
-
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        listingId,
+        {
+          favorite: true,
+          updated_at: new Date().toISOString()
+        }
+      );
+      // Update UI
       onWishlistToggle?.(listingId);
     } catch (error) {
-      console.error('Error toggling wishlist:', error);
-    } finally {
-      setLoadingStates(prev => ({ ...prev, [listingId]: false }));
+      console.error('Error favoriting listing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to favorite listing",
+        variant: "destructive",
+      });
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {[...Array(8)].map((_, i) => (
-          <Card key={i} className="overflow-hidden">
-            <div className="aspect-[4/3] bg-muted animate-pulse" />
-            <div className="p-4 space-y-3">
-              <div className="h-4 bg-muted animate-pulse rounded" />
-              <div className="h-4 bg-muted animate-pulse rounded w-1/2" />
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  if (listings.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-lg text-muted-foreground">No listings found</p>
-      </div>
-    );
-  }
-
-  const { toast } = useToast();
-
-  const handleError = useCallback((error: Error) => {
-    console.error('Error with wishlist:', error);
-    toast({
-      title: 'Error',
-      description: 'Failed to update wishlist. Please try again.',
-      variant: 'destructive',
-    });
-  }, [toast]);
+  const handleUnfavorite = async (listingId: string) => {
+    try {
+      await databases.deleteDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        listingId
+      );
+      // Update UI
+      onWishlistToggle?.(listingId);
+    } catch (error) {
+      console.error('Error unfavoriting listing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to unfavorite listing",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleWishlistClick = useCallback(async (listingId: string) => {
     if (!user) return;
@@ -219,28 +201,16 @@ export default function ListingGrid({
     
     try {
       if (wishlistedItems.has(listingId)) {
-        const { error } = await supabase
-          .from('wishlists')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('listing_id', listingId);
-
-        if (error) throw error;
+        await handleUnfavorite(listingId);
       } else {
-        const { error } = await supabase
-          .from('wishlists')
-          .insert([{ user_id: user.id, listing_id: listingId }]);
-
-        if (error) throw error;
+        await handleFavorite(listingId);
       }
-
-      onWishlistToggle?.(listingId);
     } catch (error) {
-      handleError(error as Error);
+      console.error('Error toggling wishlist:', error);
     } finally {
       setLoadingStates(prev => ({ ...prev, [listingId]: false }));
     }
-  }, [user, wishlistedItems, onWishlistToggle, handleError]);
+  }, [user, wishlistedItems, onWishlistToggle, handleFavorite, handleUnfavorite]);
 
   if (isLoading) {
     return (

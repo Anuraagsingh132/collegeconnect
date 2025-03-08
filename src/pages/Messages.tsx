@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,51 +8,194 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Send } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { databases, client } from "@/lib/appwrite";
+import { 
+    APPWRITE_DATABASE_ID,
+    APPWRITE_MESSAGES_COLLECTION_ID,
+    APPWRITE_LISTINGS_COLLECTION_ID,
+    APPWRITE_PROFILES_COLLECTION_ID 
+} from "@/lib/config";
+import { Query } from "appwrite";
+import { ID } from "appwrite";
+
+interface Message {
+    $id: string;
+    sender_id: string;
+    receiver_id: string;
+    listing_id: string;
+    message: string;
+    created_at: string;
+}
+
+interface Conversation {
+    $id: string;
+    listing_id: string;
+    listing_title?: string;
+    sender_id: string;
+    receiver_id: string;
+    last_read: string;
+    last_message?: string;
+    last_message_time?: string;
+    other_user: {
+        $id: string;
+        full_name: string;
+        avatar_url: string;
+    };
+}
 
 export default function Messages() {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [searchParams] = useSearchParams();
+  const listingId = searchParams.get('listing');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Handle listing parameter from URL
+  useEffect(() => {
+    if (listingId && user) {
+      // Check if we need to initiate a new conversation
+      const matchingConversation = conversations.find(c => c.listing_id === listingId);
+      if (matchingConversation) {
+        setSelectedConversation(matchingConversation);
+      } else if (!loadingConversations) {
+        // Fetch listing details to create a new conversation
+        const fetchListingDetails = async () => {
+          try {
+            const listing = await databases.getDocument(
+              APPWRITE_DATABASE_ID,
+              APPWRITE_LISTINGS_COLLECTION_ID,
+              listingId
+            );
+            
+            if (listing) {
+              // Create a new conversation object
+              const newConversation: Conversation = {
+                $id: ID.unique(),
+                listing_id: listingId,
+                listing_title: listing.title,
+                sender_id: user.$id,
+                receiver_id: listing.seller_id,
+                last_read: new Date().toISOString(),
+                other_user: {
+                  $id: listing.seller_id,
+                  full_name: listing.seller_name || "Seller",
+                  avatar_url: ""
+                }
+              };
+              
+              setSelectedConversation(newConversation);
+              setConversations(prev => [newConversation, ...prev]);
+            }
+          } catch (error) {
+            console.error('Error fetching listing details:', error);
+            toast({
+              title: "Error",
+              description: "Failed to start conversation for this listing",
+              variant: "destructive"
+            });
+          }
+        };
+        
+        fetchListingDetails();
+      }
+    }
+  }, [listingId, user, conversations, loadingConversations, toast]);
 
   // Fetch conversations
   useEffect(() => {
     if (!user) return;
     
     const fetchConversations = async () => {
-      setIsLoading(true);
+      setLoadingConversations(true);
       try {
-        // Get all conversations where the user is either the sender or receiver
-        const { data, error } = await supabase
-          .from('conversations')
-          .select(`
-            *,
-            listing:listing_id(id, title, images),
-            other_user:profiles!conversations_other_user_id_fkey(id, full_name, avatar_url)
-          `)
-          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-          .order('updated_at', { ascending: false });
+        // Get conversations where user is either sender or receiver
+        const senderResponse = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_MESSAGES_COLLECTION_ID,
+          [
+            Query.equal('sender_id', user.$id),
+            Query.limit(100),
+            Query.orderDesc('created_at')
+          ]
+        );
         
-        if (error) throw error;
+        const receiverResponse = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_MESSAGES_COLLECTION_ID,
+          [
+            Query.equal('receiver_id', user.$id),
+            Query.limit(100),
+            Query.orderDesc('created_at')
+          ]
+        );
         
-        // Process the conversations to get the other user's info
-        const processedConversations = data.map(conv => ({
-          ...conv,
-          other_user: conv.sender_id === user.id ? conv.other_user : conv.other_user,
-        }));
+        // Combine both lists and remove duplicates
+        const allMessages = [...senderResponse.documents, ...receiverResponse.documents];
         
-        setConversations(processedConversations || []);
+        // Group by listing_id to create conversations
+        const conversationMap = new Map<string, any>();
         
-        // Select the first conversation by default if available
-        if (processedConversations.length > 0 && !selectedConversation) {
-          setSelectedConversation(processedConversations[0]);
+        for (const msg of allMessages) {
+          const listingId = msg.listing_id as string;
+          if (!conversationMap.has(listingId)) {
+            // Determine the other user
+            const otherUserId = msg.sender_id === user.$id ? msg.receiver_id : msg.sender_id;
+            
+            try {
+              // Fetch listing details
+              const listing = await databases.getDocument(
+                APPWRITE_DATABASE_ID, 
+                APPWRITE_LISTINGS_COLLECTION_ID,
+                listingId
+              );
+              
+              // Fetch other user profile
+              const userProfile = await databases.listDocuments(
+                APPWRITE_DATABASE_ID,
+                APPWRITE_PROFILES_COLLECTION_ID,
+                [Query.equal('user_id', otherUserId)]
+              );
+              
+              const otherUser = userProfile.documents.length > 0 ? userProfile.documents[0] : null;
+              
+              conversationMap.set(listingId, {
+                $id: msg.$id,
+                listing_id: listingId,
+                listing_title: listing.title,
+                sender_id: user.$id,
+                receiver_id: otherUserId,
+                last_read: new Date().toISOString(),
+                last_message: msg.message,
+                last_message_time: msg.created_at,
+                other_user: {
+                  $id: otherUserId,
+                  full_name: otherUser?.full_name || listing.seller_name || "User",
+                  avatar_url: otherUser?.avatar_url || ""
+                }
+              });
+            } catch (error) {
+              console.error(`Error fetching details for conversation ${listingId}:`, error);
+            }
+          }
+        }
+        
+        // Convert map to array and sort by last message time
+        const conversations = Array.from(conversationMap.values())
+          .sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
+        
+        setConversations(conversations);
+        
+        // Select the first conversation by default if available and no listing specified
+        if (conversations.length > 0 && !selectedConversation && !listingId) {
+          setSelectedConversation(conversations[0]);
         }
       } catch (error: any) {
         console.error("Error fetching conversations:", error);
@@ -62,65 +205,58 @@ export default function Messages() {
           variant: "destructive",
         });
       } finally {
-        setIsLoading(false);
+        setLoadingConversations(false);
       }
     };
     
     fetchConversations();
     
-    // Set up real-time subscription for new conversations
-    const conversationsSubscription = supabase
-      .channel('conversations-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversations',
-        filter: `sender_id=eq.${user.id} OR receiver_id=eq.${user.id}`,
-      }, () => {
-        fetchConversations();
-      })
-      .subscribe();
+    // Subscribe to real-time updates
+    const unsubscribe = client.subscribe(`databases.${APPWRITE_DATABASE_ID}.collections.${APPWRITE_MESSAGES_COLLECTION_ID}.documents`, 
+      (response: any) => {
+        // Handle new messages
+        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+          // Refresh conversations
+          fetchConversations();
+        }
+      }
+    );
     
     return () => {
-      conversationsSubscription.unsubscribe();
+      unsubscribe();
     };
-  }, [user, toast]);
+  }, [user, toast, selectedConversation, listingId]);
 
   // Fetch messages for selected conversation
   useEffect(() => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !user) return;
     
     const fetchMessages = async () => {
+      setLoadingMessages(true);
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', selectedConversation.id)
-          .order('created_at', { ascending: true });
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_MESSAGES_COLLECTION_ID,
+          [
+            Query.equal('listing_id', selectedConversation.listing_id),
+            Query.orderAsc('created_at'),
+            Query.limit(100)
+          ]
+        );
+
+        // Transform documents to Message type
+        const fetchedMessages: Message[] = response.documents.map(doc => ({
+          $id: doc.$id,
+          sender_id: doc.sender_id as string,
+          receiver_id: doc.receiver_id as string,
+          listing_id: doc.listing_id as string,
+          message: doc.message as string,
+          created_at: doc.created_at as string,
+        }));
+
+        setMessages(fetchedMessages);
         
-        if (error) throw error;
-        
-        setMessages(data || []);
-        
-        // Mark messages as read
-        if (data && data.length > 0) {
-          const unreadMessages = data.filter(
-            msg => msg.receiver_id === user?.id && !msg.is_read
-          );
-          
-          if (unreadMessages.length > 0) {
-            await supabase
-              .from('messages')
-              .update({ is_read: true })
-              .in('id', unreadMessages.map(msg => msg.id));
-            
-            // Update conversation last_read
-            await supabase
-              .from('conversations')
-              .update({ last_read: new Date().toISOString() })
-              .eq('id', selectedConversation.id);
-          }
-        }
+        // We don't need to mark messages as read since the field doesn't exist in the schema
       } catch (error: any) {
         console.error("Error fetching messages:", error);
         toast({
@@ -128,26 +264,38 @@ export default function Messages() {
           description: error.message || "An unexpected error occurred.",
           variant: "destructive",
         });
+      } finally {
+        setLoadingMessages(false);
       }
     };
     
     fetchMessages();
     
-    // Set up real-time subscription for new messages
-    const messagesSubscription = supabase
-      .channel(`messages-${selectedConversation.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${selectedConversation.id}`,
-      }, () => {
-        fetchMessages();
-      })
-      .subscribe();
+    // Subscribe to real-time updates for this specific conversation
+    const unsubscribe = client.subscribe(`databases.${APPWRITE_DATABASE_ID}.collections.${APPWRITE_MESSAGES_COLLECTION_ID}.documents`, 
+      (response: any) => {
+        // Handle new messages
+        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+          const newMessage = response.payload;
+          if (newMessage.listing_id === selectedConversation.listing_id) {
+            // Add to messages if it belongs to current conversation
+            setMessages(prev => [...prev, {
+              $id: newMessage.$id,
+              sender_id: newMessage.sender_id,
+              receiver_id: newMessage.receiver_id,
+              listing_id: newMessage.listing_id,
+              message: newMessage.message,
+              created_at: newMessage.created_at,
+            }]);
+            
+            // No need to mark as read since the field doesn't exist
+          }
+        }
+      }
+    );
     
     return () => {
-      messagesSubscription.unsubscribe();
+      unsubscribe();
     };
   }, [selectedConversation, user, toast]);
 
@@ -158,44 +306,46 @@ export default function Messages() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user || !selectedConversation || !newMessage.trim()) return;
-    
+    if (!newMessage.trim() || !selectedConversation || !user) return;
+
     setIsSending(true);
     try {
-      // Add message to database
-      const { error } = await supabase
-        .from('messages')
-        .insert([
-          {
-            conversation_id: selectedConversation.id,
-            sender_id: user.id,
-            receiver_id: selectedConversation.sender_id === user.id 
-              ? selectedConversation.receiver_id 
-              : selectedConversation.sender_id,
-            content: newMessage,
-            is_read: false,
-          }
-        ]);
-      
-      if (error) throw error;
-      
-      // Update conversation's updated_at timestamp
-      await supabase
-        .from('conversations')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', selectedConversation.id);
-      
+      await sendMessage(newMessage);
       setNewMessage("");
     } catch (error: any) {
-      console.error("Error sending message:", error);
+      console.error('Error sending message:', error);
       toast({
-        title: "Error sending message",
-        description: error.message || "An unexpected error occurred.",
+        title: "Error",
+        description: "Failed to send message",
         variant: "destructive",
       });
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const sendMessage = async (message: string) => {
+    if (!selectedConversation || !user) return;
+
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_MESSAGES_COLLECTION_ID,
+        ID.unique(),
+        {
+          sender_id: user.$id,
+          receiver_id: selectedConversation.receiver_id,
+          listing_id: selectedConversation.listing_id,
+          message: message,
+          created_at: new Date().toISOString()
+        }
+      );
+      
+      // Log success
+      console.log('Message sent successfully');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
   };
 
@@ -227,7 +377,7 @@ export default function Messages() {
             </div>
             
             <ScrollArea className="h-[calc(80vh-10rem)]">
-              {isLoading ? (
+              {loadingConversations ? (
                 <div className="flex justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
@@ -239,26 +389,32 @@ export default function Messages() {
                 <div className="divide-y">
                   {conversations.map((conversation) => (
                     <div
-                      key={conversation.id}
-                      className={`p-4 cursor-pointer hover:bg-muted/50 ${
-                        selectedConversation?.id === conversation.id ? "bg-muted" : ""
+                      key={conversation.$id}
+                      className={`p-4 cursor-pointer hover:bg-accent/80 ${
+                        selectedConversation?.listing_id === conversation.listing_id 
+                          ? "bg-accent/80 border-l-4 border-l-primary" 
+                          : ""
                       }`}
                       onClick={() => setSelectedConversation(conversation)}
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={conversation.other_user?.avatar_url || ""} />
-                          <AvatarFallback>
-                            {conversation.other_user?.full_name?.charAt(0) || "U"}
+                        <Avatar className="border-2 border-primary">
+                          <AvatarImage src={conversation.other_user.avatar_url} />
+                          <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                            {conversation.other_user.full_name.charAt(0) || 'U'}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {conversation.other_user?.full_name || "User"}
+                        <div className="flex-1">
+                          <p className="font-semibold text-foreground">{conversation.other_user.full_name || 'User'}</p>
+                          <p className="text-sm font-medium text-foreground/80 truncate">
+                            {conversation.listing_title || 'Item'}
                           </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {conversation.listing?.title || "Item"}
-                          </p>
+                          {conversation.last_message && (
+                            <p className="text-sm text-foreground/70 truncate mt-1">
+                              {conversation.last_message.substring(0, 30)}
+                              {conversation.last_message.length > 30 ? '...' : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -274,18 +430,18 @@ export default function Messages() {
               <>
                 <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Avatar>
+                    <Avatar className="border-2 border-primary">
                       <AvatarImage src={selectedConversation.other_user?.avatar_url || ""} />
-                      <AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground font-bold">
                         {selectedConversation.other_user?.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h2 className="font-semibold">
+                      <h2 className="font-semibold text-foreground">
                         {selectedConversation.other_user?.full_name || "User"}
                       </h2>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedConversation.listing?.title || "Item"}
+                      <p className="text-sm font-medium text-foreground/80">
+                        {selectedConversation.listing_title || selectedConversation.listing_id}
                       </p>
                     </div>
                   </div>
@@ -300,39 +456,39 @@ export default function Messages() {
                 </div>
                 
                 <ScrollArea className="flex-1 p-4 h-[calc(80vh-16rem)]">
-                  <div className="space-y-4">
-                    {messages.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        No messages yet. Start the conversation!
-                      </div>
-                    ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${
-                            message.sender_id === user.id ? "justify-end" : "justify-start"
-                          }`}
-                        >
+                  {loadingMessages ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                          No messages yet. Start the conversation!
+                        </div>
+                      ) : (
+                        messages.map((message) => (
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 ${
-                              message.sender_id === user.id
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
+                            key={message.$id}
+                            className={`flex ${
+                              message.sender_id === user.$id ? "justify-end" : "justify-start"
                             }`}
                           >
-                            <p>{message.content}</p>
-                            <p className="text-xs mt-1 opacity-70">
-                              {new Date(message.created_at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                message.sender_id === user.$id
+                                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                                  : "bg-secondary text-secondary-foreground font-medium shadow-sm"
+                              }`}
+                            >
+                              {message.message}
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
+                        ))
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
                 </ScrollArea>
                 
                 <form onSubmit={handleSendMessage} className="p-4 border-t flex gap-2">

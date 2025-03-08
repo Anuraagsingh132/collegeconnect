@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, ShoppingBag, Heart, MessageCircle, LogOut, PlusCircle } from 'lucide-react';
+import { Menu, X, User, ShoppingBag, Heart, MessageCircle, LogOut, PlusCircle, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
+import Logo from './Logo';
 import { useAuth } from '@/lib/AuthContext';
 import {
   DropdownMenu,
@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, userProfile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   
   // Handle scroll effect
@@ -44,6 +44,9 @@ const Navbar: React.FC = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
   
+  // Check if the current user is an admin
+  const isAdmin = user && user.email === "anuraagsingh10a@gmail.com";
+  
   return (
     <>
       <header 
@@ -53,11 +56,7 @@ const Navbar: React.FC = () => {
       >
         <div className="container mx-auto px-4 flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
-            <h1 className="text-xl font-display font-bold animated-gradient">
-              CollegeMate
-            </h1>
-          </Link>
+          <Logo />
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -74,7 +73,11 @@ const Navbar: React.FC = () => {
           
           {/* Search Bar (Desktop) */}
           <div className="hidden md:block">
-            <SearchBar />
+            <SearchBar onSearch={(query) => {
+              if (query.trim()) {
+                navigate(`/explore?q=${encodeURIComponent(query.trim())}`);
+              }
+            }} />
           </div>
           
           {/* Right Actions */}
@@ -93,20 +96,26 @@ const Navbar: React.FC = () => {
                   <DropdownMenuTrigger asChild>
                     <button className="rounded-full overflow-hidden focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none">
                       <Avatar>
-                        <AvatarImage src={userProfile?.avatar_url || ""} />
+                        <AvatarImage src={profile?.avatar_url || ""} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {userProfile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
+                          {profile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
                         </AvatarFallback>
                       </Avatar>
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{userProfile?.full_name || user.email}</DropdownMenuLabel>
+                    <DropdownMenuLabel>{profile?.full_name || user.email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate("/profile")}>
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem onClick={() => navigate("/admin")}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => navigate("/my-listings")}>
                       <ShoppingBag className="mr-2 h-4 w-4" />
                       My Listings
@@ -149,7 +158,15 @@ const Navbar: React.FC = () => {
         {mobileMenuOpen && (
           <div className="md:hidden glass absolute top-full left-0 right-0 p-4 shadow-lg animate-slide-down">
             <div className="flex flex-col space-y-4">
-              <SearchBar className="w-full mb-2" />
+              <SearchBar 
+                className="w-full mb-2" 
+                onSearch={(query) => {
+                  if (query.trim()) {
+                    navigate(`/explore?q=${encodeURIComponent(query.trim())}`);
+                    setMobileMenuOpen(false);
+                  }
+                }}
+              />
               <Link 
                 to="/explore" 
                 className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
@@ -180,6 +197,15 @@ const Navbar: React.FC = () => {
                   >
                     Profile
                   </Link>
+                  {isAdmin && (
+                    <Link 
+                      to="/admin" 
+                      className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
                   <button 
                     className="px-4 py-3 rounded-lg hover:bg-secondary transition-colors text-left"
                     onClick={() => {

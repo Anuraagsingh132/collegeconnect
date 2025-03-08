@@ -1,4 +1,3 @@
-
 # College Marketplace App - Development Progress
 
 ## Completed Features
@@ -289,3 +288,101 @@
    - Implement error boundaries
    - Optimize image loading
    - Add performance monitoring
+
+# CollegeMate Market - Appwrite Integration Fixes
+
+## Overview
+
+This document summarizes all changes made to resolve issues with the Appwrite integration in the CollegeMate Market application. The main issues were related to schema mismatches between the code and the Appwrite database collections.
+
+## Authentication Issues
+
+### 1. Fixed Sign-In Method
+- **File:** `src/lib/appwrite.ts`
+- **Issue:** The application was using an incorrect method for authentication.
+- **Change:** Updated the sign-in function to use `createEmailPasswordSession` instead of `createSession`.
+- **Why:** The Appwrite SDK v1.5+ requires `createEmailPasswordSession` for email/password authentication.
+
+### 2. Enhanced Error Handling in Authentication
+- **File:** `src/lib/appwrite.ts`
+- **Change:** Added detailed error logging for all authentication functions.
+- **Why:** Improved error visibility helps with debugging authentication issues.
+
+### 3. Fixed Google Sign-In Type Issue
+- **File:** `src/lib/appwrite.ts`
+- **Issue:** OAuth provider type error with Google sign-in.
+- **Change:** Added proper type assertion for the Google provider.
+- **Why:** The Appwrite SDK's type definitions require specific OAuth provider types.
+
+## Profile Management Issues
+
+### 4. Fixed Profile Creation Schema Mismatch
+- **File:** `src/lib/AuthContext.tsx`
+- **Issue:** The application was trying to create profiles with fields not defined in the Appwrite schema.
+- **Change:** Removed undefined fields from profile creation:
+  - Removed `display_name`, `bio`, `avatar_url`, `full_name`, `phone`, and `college_name`
+  - Kept only essential fields that exist in the Appwrite collection: `user_id`, `created_at`, and `updated_at`
+- **Why:** Appwrite rejects documents with fields not defined in the collection schema.
+
+### 5. Enhanced Profile Refresh Function
+- **File:** `src/lib/AuthContext.tsx`
+- **Change:** Improved the `refreshUser` function with better loading state management and error handling.
+- **Why:** Ensures the UI correctly reflects loading states and error messages during profile refreshes.
+
+## Listing Management Issues
+
+### 6. Fixed Listing Creation Schema Mismatch
+- **File:** `src/lib/listingService.ts`
+- **Issue:** The application was trying to create listings with a `location` field not defined in the Appwrite schema.
+- **Change:** 
+  - Removed the `location` field from the `ListingData` type
+  - Updated the `createListing` function to only include fields defined in the schema
+  - Modified the return type to exclude the `location` field
+- **Why:** Prevents 400 Bad Request errors from Appwrite when creating listings.
+
+### 7. Updated Listing Form
+- **File:** `src/pages/CreateListing.tsx`
+- **Issue:** The form included a `location` field which caused errors when submitting.
+- **Change:**
+  - Removed the `location` field from the form schema
+  - Removed the `location` field from form defaultValues
+  - Removed the `location` input field from the UI
+  - Removed the `location` field from the form submission data
+- **Why:** Ensures the form only collects data compatible with the Appwrite collection schema.
+
+## Navigation and Redirect Fixes
+
+### 8. Fixed Marketplace Route Issues
+- **File:** `src/App.tsx`
+- **Issue:** The application was redirecting to `/marketplace` which didn't exist.
+- **Change:** Added a redirect from `/marketplace` to `/explore`.
+- **Why:** Preserves navigation flow when old code references a non-existent route.
+
+### 9. Updated OAuth Redirect
+- **File:** `src/lib/appwrite.ts`
+- **Issue:** OAuth was redirecting to an incorrect URL.
+- **Change:** Updated success URL to `/explore` instead of `/marketplace`.
+- **Why:** Ensures proper navigation after OAuth authentication.
+
+## Data Handling Improvements
+
+### 10. Updated Query Types
+- **File:** `src/lib/appwrite.ts`
+- **Issue:** Incorrect type for queries parameter in `listDocuments`.
+- **Change:** Updated type from `string[]` to `any[]`.
+- **Why:** Appwrite's Query class objects need to be treated as `any` type.
+
+### 11. Enhanced Error Logging
+- **Files:** Multiple files throughout the codebase
+- **Change:** Added detailed console error logging for all Appwrite operations.
+- **Why:** Makes debugging easier by providing more contextual information about errors.
+
+## Conclusion
+
+These changes have resolved the key issues with the Appwrite integration. The application should now be able to:
+- Authenticate users properly
+- Create and manage user profiles
+- Create and display listings
+- Navigate between screens correctly
+
+To add any fields currently missing from your schema (like `location` or user profile fields), you should first define those fields in your Appwrite collection schema through the Appwrite Console, then add them back to the code.

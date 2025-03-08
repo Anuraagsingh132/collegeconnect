@@ -1,19 +1,25 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
 interface SearchBarProps {
   className?: string;
   placeholder?: string;
+  initialValue?: string;
   onSearch?: (query: string) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({ 
   className = '', 
   placeholder = 'Search for items...', 
+  initialValue = '',
   onSearch 
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialValue);
+  
+  // Update query when initialValue changes
+  useEffect(() => {
+    setQuery(initialValue);
+  }, [initialValue]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

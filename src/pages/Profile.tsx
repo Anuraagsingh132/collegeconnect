@@ -13,7 +13,13 @@ import { Loader2, Upload } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
-import { supabase, uploadImage, getImageUrl, updateUserProfile } from "@/lib/supabase";
+import { databases, storage } from "@/lib/appwrite";
+import { ID } from "appwrite";
+import { 
+    APPWRITE_DATABASE_ID,
+    APPWRITE_PROFILES_COLLECTION_ID,
+    APPWRITE_AVATARS_BUCKET_ID 
+} from "@/lib/config";
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -23,7 +29,7 @@ const profileFormSchema = z.object({
 });
 
 export default function Profile() {
-  const { user, userProfile, refreshUser } = useAuth();
+  const { user, profile, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -40,45 +46,47 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (userProfile) {
+    if (profile) {
       form.reset({
-        full_name: userProfile.full_name || "",
-        college_name: userProfile.college_name || "",
-        bio: userProfile.bio || "",
-        phone: userProfile.phone || "",
+        full_name: profile.full_name || "",
+        college_name: profile.college_name || "",
+        bio: profile.bio || "",
+        phone: profile.phone || "",
       });
       
-      if (userProfile.avatar_url) {
-        setAvatarUrl(userProfile.avatar_url);
+      if (profile.avatar_url) {
+        setAvatarUrl(profile.avatar_url);
       }
     }
-  }, [userProfile, form]);
+  }, [profile, form]);
 
   const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
-    if (!user) return;
+    if (!user || !profile) return;
     
     setIsLoading(true);
     try {
-      const { error } = await updateUserProfile(user.id, values);
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION_ID,
+        profile.$id,
+        {
+          ...values,
+          updated_at: new Date().toISOString()
+        }
+      );
       
-      if (error) {
-        toast({
-          title: "Error updating profile",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been updated successfully.",
-        });
-        refreshUser();
-      }
-    } catch (error) {
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+      
+      // Use refreshUser instead of page reload
+      refreshUser();
+    } catch (error: any) {
       console.error("Error updating profile:", error);
       toast({
         title: "Error updating profile",
-        description: "An unexpected error occurred. Please try again.",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -87,41 +95,46 @@ export default function Profile() {
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !event.target.files || event.target.files.length === 0) return;
+    if (!user || !profile || !event.target.files || event.target.files.length === 0) return;
     
     const file = event.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user.id}/avatar.${fileExt}`;
+    const fileId = ID.unique();
     
     setUploadingAvatar(true);
     
     try {
-      // Upload the file to Supabase storage
-      const { error: uploadError } = await uploadImage('avatars', filePath, file);
+      // Upload the file to Appwrite storage
+      await storage.createFile(
+        APPWRITE_AVATARS_BUCKET_ID,
+        fileId,
+        file
+      );
       
-      if (uploadError) {
-        throw uploadError;
-      }
-      
-      // Get the public URL
-      const publicUrl = getImageUrl('avatars', filePath);
+      // Get the file view URL
+      const fileUrl = storage.getFileView(
+        APPWRITE_AVATARS_BUCKET_ID,
+        fileId
+      ).toString();
       
       // Update the user's profile with the new avatar URL
-      const { error: updateError } = await updateUserProfile(user.id, {
-        avatar_url: publicUrl,
-      });
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_PROFILES_COLLECTION_ID,
+        profile.$id,
+        {
+          avatar_url: fileUrl,
+          updated_at: new Date().toISOString()
+        }
+      );
       
-      if (updateError) {
-        throw updateError;
-      }
-      
-      setAvatarUrl(publicUrl);
+      setAvatarUrl(fileUrl);
       
       toast({
         title: "Avatar updated",
         description: "Your profile picture has been updated successfully.",
       });
       
+      // Use refreshUser instead of page reload
       refreshUser();
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
@@ -156,7 +169,7 @@ export default function Profile() {
               <Avatar className="h-24 w-24">
                 <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="text-xl">
-                  {userProfile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
+                  {profile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="absolute bottom-0 right-0">
@@ -177,7 +190,7 @@ export default function Profile() {
                 </label>
               </div>
             </div>
-            <h1 className="text-2xl font-bold">{userProfile?.full_name || user.email}</h1>
+            <h1 className="text-2xl font-bold">{profile?.full_name || user.email}</h1>
             <p className="text-muted-foreground">{user.email}</p>
           </div>
 
@@ -253,10 +266,8 @@ export default function Profile() {
                           </FormItem>
                         )}
                       />
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : null}
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
                       </Button>
                     </form>

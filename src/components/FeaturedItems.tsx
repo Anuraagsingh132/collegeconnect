@@ -1,83 +1,47 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ItemCard from './ItemCard';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import Button from './Button';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
+import { databases } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { APPWRITE_DATABASE_ID, APPWRITE_LISTINGS_COLLECTION_ID } from '@/lib/config';
 
 const FeaturedItems: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Sample items data (in a real app this would come from an API)
-  const items = [
-    {
-      id: '1',
-      title: 'MacBook Pro 2023 - Perfect Condition',
-      price: 1200,
-      image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'Alex Johnson',
-      sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      isFeatured: true,
-      category: 'Electronics',
-    },
-    {
-      id: '2',
-      title: 'Calculus Textbook - 10th Edition',
-      price: 45,
-      image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'Sarah Miller',
-      sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-      isFeatured: false,
-      category: 'Books',
-    },
-    {
-      id: '3',
-      title: 'Dorm Room Desk Chair - Ergonomic',
-      price: 75,
-      image: 'https://images.unsplash.com/photo-1585821569331-f071db2abd8d?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'Mike Chen',
-      sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      isFeatured: false,
-      category: 'Furniture',
-    },
-    {
-      id: '4',
-      title: 'Graphing Calculator - TI-84 Plus',
-      price: 50,
-      image: 'https://images.unsplash.com/photo-1595433542304-ef0060c2ef8a?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'Samantha Lee',
-      sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-      createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-      isFeatured: true,
-      category: 'Electronics',
-    },
-    {
-      id: '5',
-      title: 'Physics 101 Course Materials Bundle',
-      price: 35,
-      image: 'https://images.unsplash.com/photo-1600431521340-491eca880813?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'David Wilson',
-      sellerAvatar: 'https://randomuser.me/api/portraits/men/5.jpg',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      isFeatured: false,
-      category: 'Books',
-    },
-    {
-      id: '6',
-      title: 'Wireless Noise-Canceling Headphones',
-      price: 120,
-      image: 'https://images.unsplash.com/photo-1545127398-14699f92334b?q=80&w=1000&auto=format&fit=crop',
-      sellerName: 'Emma Taylor',
-      sellerAvatar: 'https://randomuser.me/api/portraits/women/6.jpg',
-      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-      isFeatured: true,
-      category: 'Electronics',
-    },
-  ];
+  // Fetch the most expensive items
+  useEffect(() => {
+    const fetchExpensiveItems = async () => {
+      setLoading(true);
+      try {
+        // Get active listings ordered by price (highest first)
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          [
+            Query.equal('status', 'active'),
+            Query.orderDesc('price'),
+            Query.limit(10)
+          ]
+        );
+        
+        setItems(response.documents);
+      } catch (error) {
+        console.error('Error fetching trending items:', error);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchExpensiveItems();
+  }, []);
   
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
@@ -101,6 +65,49 @@ const FeaturedItems: React.FC = () => {
     }, 300);
   };
   
+  // Render loading skeletons
+  if (loading) {
+    return (
+      <section className="py-20 bg-secondary/50">
+        <div className="container px-6 mx-auto">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-display font-bold mb-2">
+                Trending Now
+              </h2>
+              <p className="text-muted-foreground">
+                Most expensive items you might be interested in
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex space-x-6 overflow-x-auto scroll-hidden pb-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="w-80 min-w-[320px] flex-shrink-0">
+                <div className="rounded-xl overflow-hidden border border-border h-full">
+                  <Skeleton className="h-48 w-full" />
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/4" />
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <Skeleton className="h-4 w-1/3" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+  
+  // If no items, don't render the section
+  if (items.length === 0) {
+    return null;
+  }
+  
   return (
     <section className="py-20 bg-secondary/50">
       <div className="container px-6 mx-auto">
@@ -110,7 +117,7 @@ const FeaturedItems: React.FC = () => {
               Trending Now
             </h2>
             <p className="text-muted-foreground">
-              Hot items that you might not want to miss
+              Most expensive items you might be interested in
             </p>
           </div>
           
@@ -149,8 +156,18 @@ const FeaturedItems: React.FC = () => {
           }}
         >
           {items.map((item) => (
-            <div key={item.id} className="w-80 min-w-[320px] flex-shrink-0">
-              <ItemCard {...item} />
+            <div key={item.$id} className="w-80 min-w-[320px] flex-shrink-0">
+              <ItemCard 
+                id={item.$id}
+                title={item.title}
+                price={item.price}
+                image={item.images?.[0] || ''}
+                sellerName={item.seller_name || 'Unknown Seller'}
+                sellerAvatar={''}
+                createdAt={new Date(item.created_at)}
+                category={item.category}
+                isFeatured={true}
+              />
             </div>
           ))}
         </div>
@@ -159,9 +176,12 @@ const FeaturedItems: React.FC = () => {
           <Button 
             variant="outline" 
             className="group"
+            asChild
           >
-            <span>View All Items</span>
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <Link to="/explore">
+              <span>View All Items</span>
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </Button>
         </div>
       </div>

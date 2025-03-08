@@ -1,102 +1,15 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import ItemCard from '../components/ItemCard';
 import SearchBar from '../components/SearchBar';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-// Sample data (in a real app, this would come from an API)
-const items = [
-  {
-    id: '1',
-    title: 'MacBook Pro 2023 - Perfect Condition',
-    price: 1200,
-    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Alex Johnson',
-    sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    isFeatured: true,
-    category: 'Electronics',
-  },
-  {
-    id: '2',
-    title: 'Calculus Textbook - 10th Edition',
-    price: 45,
-    image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Sarah Miller',
-    sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-    isFeatured: false,
-    category: 'Books',
-  },
-  {
-    id: '3',
-    title: 'Dorm Room Desk Chair - Ergonomic',
-    price: 75,
-    image: 'https://images.unsplash.com/photo-1585821569331-f071db2abd8d?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Mike Chen',
-    sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    isFeatured: false,
-    category: 'Furniture',
-  },
-  {
-    id: '4',
-    title: 'Graphing Calculator - TI-84 Plus',
-    price: 50,
-    image: 'https://images.unsplash.com/photo-1595433542304-ef0060c2ef8a?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Samantha Lee',
-    sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    isFeatured: true,
-    category: 'Electronics',
-  },
-  {
-    id: '5',
-    title: 'Physics 101 Course Materials Bundle',
-    price: 35,
-    image: 'https://images.unsplash.com/photo-1600431521340-491eca880813?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'David Wilson',
-    sellerAvatar: 'https://randomuser.me/api/portraits/men/5.jpg',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    isFeatured: false,
-    category: 'Books',
-  },
-  {
-    id: '6',
-    title: 'Wireless Noise-Canceling Headphones',
-    price: 120,
-    image: 'https://images.unsplash.com/photo-1545127398-14699f92334b?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Emma Taylor',
-    sellerAvatar: 'https://randomuser.me/api/portraits/women/6.jpg',
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-    isFeatured: true,
-    category: 'Electronics',
-  },
-  {
-    id: '7',
-    title: 'Modern Coffee Table - Great for Apartments',
-    price: 65,
-    image: 'https://images.unsplash.com/photo-1592078615290-033ee584e267?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Jack Brown',
-    sellerAvatar: 'https://randomuser.me/api/portraits/men/7.jpg',
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-    isFeatured: false,
-    category: 'Furniture',
-  },
-  {
-    id: '8',
-    title: 'Organic Chemistry Study Notes - Complete',
-    price: 30,
-    image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=1000&auto=format&fit=crop',
-    sellerName: 'Olivia Martinez',
-    sellerAvatar: 'https://randomuser.me/api/portraits/women/8.jpg',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-    isFeatured: false,
-    category: 'Books',
-  },
-];
+import { databases } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { APPWRITE_DATABASE_ID, APPWRITE_LISTINGS_COLLECTION_ID } from '@/lib/config';
+import { useToast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const categories = [
   'All Categories',
@@ -112,21 +25,89 @@ const categories = [
 ];
 
 const Explore: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const navigate = useNavigate();
+  const { category } = useParams<{ category?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
+  
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState(category || 'All Categories');
   const [sortOption, setSortOption] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const { toast } = useToast();
   
-  // Filter items based on selected category
-  const filteredItems = selectedCategory === 'All Categories'
-    ? items
-    : items.filter(item => item.category === selectedCategory);
+  useEffect(() => {
+    if (category) {
+      setSelectedCategory(category);
+    }
+  }, [category]);
+
+  // Handle search functionality
+  const handleSearch = (query: string) => {
+    // Update URL search params to include the search query
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (query) {
+      newSearchParams.set('q', query);
+    } else {
+      newSearchParams.delete('q');
+    }
+    setSearchParams(newSearchParams);
+  };
+  
+  useEffect(() => {
+    const fetchListings = async () => {
+      setLoading(true);
+      try {
+        let queries = [
+          Query.equal('status', 'active')
+        ];
+        
+        // Add category filter if not "All Categories"
+        if (selectedCategory !== 'All Categories') {
+          queries.push(Query.equal('category', selectedCategory));
+        }
+        
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          queries
+        );
+        
+        // Filter results by search query if present
+        let filteredResults = response.documents;
+        if (searchQuery) {
+          const lowercaseQuery = searchQuery.toLowerCase();
+          filteredResults = filteredResults.filter((item: any) => 
+            item.title?.toLowerCase().includes(lowercaseQuery) || 
+            item.description?.toLowerCase().includes(lowercaseQuery) || 
+            item.category?.toLowerCase().includes(lowercaseQuery)
+          );
+        }
+        
+        setItems(filteredResults);
+      } catch (error: any) {
+        console.error('Error fetching listings:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load listings: ' + (error.message || 'Unknown error'),
+          variant: 'destructive',
+        });
+        setItems([]); // Set empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchListings();
+  }, [selectedCategory, searchQuery, toast]);
   
   // Sort items based on selected sort option
-  const sortedItems = [...filteredItems].sort((a, b) => {
+  const sortedItems = [...items].sort((a, b) => {
     if (sortOption === 'newest') {
-      return b.createdAt.getTime() - a.createdAt.getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     } else if (sortOption === 'oldest') {
-      return a.createdAt.getTime() - b.createdAt.getTime();
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     } else if (sortOption === 'price-low') {
       return a.price - b.price;
     } else if (sortOption === 'price-high') {
@@ -145,7 +126,12 @@ const Explore: React.FC = () => {
             <h1 className="text-3xl font-display font-bold">Explore Listings</h1>
             
             <div className="flex items-center gap-2">
-              <SearchBar className="w-full md:w-auto" />
+              <SearchBar 
+                className="w-full md:w-auto" 
+                onSearch={handleSearch}
+                placeholder="Search listings..."
+                initialValue={searchQuery}
+              />
               
               <Button 
                 variant="outline" 
@@ -158,6 +144,28 @@ const Explore: React.FC = () => {
               </Button>
             </div>
           </div>
+          
+          {searchQuery && (
+            <div className="mb-6">
+              <p className="text-sm text-muted-foreground">
+                {sortedItems.length === 0 
+                  ? `No results found for "${searchQuery}"`
+                  : `Showing ${sortedItems.length} result${sortedItems.length !== 1 ? 's' : ''} for "${searchQuery}"`
+                }
+              </p>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-sm" 
+                onClick={() => {
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.delete('q');
+                  setSearchParams(newParams);
+                }}
+              >
+                Clear search
+              </Button>
+            </div>
+          )}
           
           <div className="flex flex-col md:flex-row gap-6">
             {/* Filters (always visible on desktop, toggle on mobile) */}
@@ -215,15 +223,59 @@ const Explore: React.FC = () => {
             
             {/* Items Grid */}
             <div className="flex-1">
-              {sortedItems.length === 0 ? (
+              {loading ? (
+                // Loading skeletons
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border border-border">
+                      <Skeleton className="h-48 w-full" />
+                      <div className="p-4 space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-1/4" />
+                        <div className="flex items-center space-x-2 pt-2">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <Skeleton className="h-4 w-1/3" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sortedItems.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">No items found. Try a different category.</p>
+                  <p className="text-muted-foreground">
+                    {searchQuery 
+                      ? `No results found for "${searchQuery}". Try different keywords.`
+                      : 'No items found. Try a different category or add new listings.'
+                    }
+                  </p>
+                  {searchQuery && (
+                    <Button 
+                      variant="link" 
+                      onClick={() => {
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.delete('q');
+                        setSearchParams(newParams);
+                      }}
+                    >
+                      Clear search
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {sortedItems.map((item) => (
-                    <div key={item.id} className="animate-fade-in" style={{ '--index': sortedItems.indexOf(item) } as React.CSSProperties}>
-                      <ItemCard {...item} />
+                    <div key={item.$id} className="animate-fade-in" style={{ '--index': sortedItems.indexOf(item) } as React.CSSProperties}>
+                      <ItemCard 
+                        id={item.$id}
+                        title={item.title}
+                        price={item.price}
+                        image={item.images?.[0] || ''}
+                        sellerName={item.seller_name || 'Unknown Seller'}
+                        sellerAvatar={''}
+                        createdAt={new Date(item.created_at)}
+                        category={item.category}
+                        isFeatured={item.is_featured}
+                      />
                     </div>
                   ))}
                 </div>

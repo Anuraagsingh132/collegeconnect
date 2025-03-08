@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
@@ -7,6 +6,7 @@ import FeaturedItems from '../components/FeaturedItems';
 import { ArrowRight, Heart, Shield, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import Logo from '@/components/Logo';
 
 const Index: React.FC = () => {
   return (
@@ -74,10 +74,10 @@ const Index: React.FC = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg">
-                  Get Started
+                <Button size="lg" asChild>
+                  <Link to="/explore">Get Started</Link>
                 </Button>
-                <Link to="/about">
+                <Link to="/explore">
                   <Button variant="outline" size="lg" className="group">
                     <span>Learn More</span>
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -94,43 +94,90 @@ const Index: React.FC = () => {
         <div className="container px-6 mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-bold mb-4">CollegeMate</h3>
+              <div className="mb-4">
+                <Logo />
+              </div>
               <p className="text-muted-foreground">
-                The marketplace built for college students, by college students.
+                The marketplace built for college students, by college students. Buy, sell, and connect with your campus community.
               </p>
             </div>
             
             <div>
-              <h4 className="text-base font-medium mb-4">Resources</h4>
+              <h4 className="text-base font-medium mb-4">Navigation</h4>
               <ul className="space-y-2">
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Help Center</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Safety Tips</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Community Guidelines</Link></li>
+                <li><Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">Home</Link></li>
+                <li><Link to="/explore" className="text-muted-foreground hover:text-foreground transition-colors">Explore</Link></li>
+                <li><Link to="/categories" className="text-muted-foreground hover:text-foreground transition-colors">Categories</Link></li>
+                <li><Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">How It Works</Link></li>
+                <li>
+                  <a 
+                    href="https://developer.streamverse.biz" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-muted-foreground hover:text-foreground transition-colors flex items-center"
+                  >
+                    Developers
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                    </svg>
+                  </a>
+                </li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-base font-medium mb-4">Company</h4>
+              <h4 className="text-base font-medium mb-4">Account</h4>
               <ul className="space-y-2">
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">About Us</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Careers</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link></li>
+                <li><Link to="/profile" className="text-muted-foreground hover:text-foreground transition-colors">My Profile</Link></li>
+                <li><Link to="/my-listings" className="text-muted-foreground hover:text-foreground transition-colors">My Listings</Link></li>
+                <li><Link to="/messages" className="text-muted-foreground hover:text-foreground transition-colors">Messages</Link></li>
+                <li><Link to="/create-listing" className="text-muted-foreground hover:text-foreground transition-colors">Create Listing</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="text-base font-medium mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link></li>
-                <li><Link to="#" className="text-muted-foreground hover:text-foreground transition-colors">Cookie Policy</Link></li>
-              </ul>
+              <h4 className="text-base font-medium mb-4">Stay Updated</h4>
+              <p className="text-sm text-muted-foreground mb-2">Subscribe to our newsletter for campus deals and updates</p>
+              <div className="flex mt-2">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  className="px-3 py-2 bg-background border border-input rounded-l-md text-sm focus:outline-none focus:ring-1 focus:ring-primary flex-grow"
+                />
+                <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-r-md text-sm font-medium transition-colors">
+                  Subscribe
+                </button>
+              </div>
             </div>
           </div>
           
-          <div className="mt-12 pt-8 border-t border-foreground/10 flex flex-col md:flex-row justify-between items-center">
+          {/* Developer Info Section */}
+          <div className="mt-10 pt-8 border-t border-foreground/10 text-center">
+            <div className="bg-primary/5 p-4 rounded-lg inline-block">
+              <h4 className="text-base font-medium mb-2">Developer Information</h4>
+              <div className="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                <a 
+                  href="https://developer.streamverse.biz" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary font-medium hover:underline"
+                >
+                  developer.streamverse.biz
+                </a>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                "Code is like humor. When you have to explain it, it's bad." — Cory House
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-8 pt-8 border-t border-foreground/10 flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} CollegeMate. All rights reserved.
+              © {new Date().getFullYear()} <span className="font-semibold">CollegeMate</span> by streamverse. All rights reserved.
             </p>
             
             <div className="flex space-x-4 mt-4 md:mt-0">

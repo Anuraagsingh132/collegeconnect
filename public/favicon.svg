@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <style>
+    path, polyline, line {
+      stroke: #1a5fb4;
+      fill: #1a5fb4;
+    }
+    @media (prefers-color-scheme: dark) {
+      path, polyline, line {
+        stroke: #3b82f6;
+        fill: #3b82f6;
+      }
+    }
+  </style>
+  <!-- Graduation Cap -->
+  <path d="M12 2L2 8L12 14L22 8L12 2Z" fill="#1a5fb4" />
+  <polyline points="2 8L2 15" />
+  <line x1="12" y1="14" x2="12" y2="22" />
+  <path d="M18 10V15C18 16.6569 15.3137 18 12 18C8.68629 18 6 16.6569 6 15V10" fill="none" />
+  <!-- Tassel -->
+  <line x1="22" y1="8" x2="19" y2="11" />
+  <path d="M19 11C19 11 19 12.5 18 13C17 13.5 16 13 16 13" fill="none" />
+</svg> 

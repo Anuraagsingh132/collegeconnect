@@ -13,7 +13,12 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { databases } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { 
+    APPWRITE_DATABASE_ID,
+    APPWRITE_LISTINGS_COLLECTION_ID 
+} from '@/lib/config';
 
 const CATEGORIES = [
   'All',
@@ -39,7 +44,7 @@ export default function Marketplace() {
   
   const [listings, setListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [wishlistedItems, setWishlistedItems] = useState(new Set());
+  const [wishlistedItems, setWishlistedItems] = useState(new Set<string>());
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
@@ -51,32 +56,15 @@ export default function Marketplace() {
     const fetchListings = async () => {
       setIsLoading(true);
       try {
-        let query = supabase
-          .from('listings')
-          .select(\`
-            *,
-            seller:profiles(id, full_name, avatar_url)
-          \`)
-          .eq('status', 'active');
-
-        // Apply category filter
-        if (selectedCategory !== 'All') {
-          query = query.eq('category', selectedCategory);
-        }
-
-        // Apply search query
-        if (searchQuery) {
-          query = query.ilike('title', \`%\${searchQuery}%\`);
-        }
-
-        // Apply sorting
-        const [column, order] = sortBy.split('.');
-        query = query.order(column, { ascending: order === 'asc' });
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        setListings(data || []);
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          [
+            // Add any filters here
+            // Example: Query.equal('status', 'active')
+          ]
+        );
+        setListings(response.documents);
       } catch (error) {
         console.error('Error fetching listings:', error);
         toast({
@@ -90,29 +78,37 @@ export default function Marketplace() {
     };
 
     fetchListings();
-  }, [searchQuery, selectedCategory, sortBy, toast]);
+  }, [toast]);
 
   // Fetch wishlisted items
   useEffect(() => {
-    const fetchWishlist = async () => {
+    const fetchWishlistedItems = async () => {
       if (!user) return;
 
       try {
-        const { data, error } = await supabase
-          .from('wishlists')
-          .select('listing_id')
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-
-        setWishlistedItems(new Set(data.map(item => item.listing_id)));
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          [
+            Query.equal('favorite', true),
+            Query.equal('user_id', user.$id)
+          ]
+        );
+        
+        const wishlistedIds = new Set<string>(response.documents.map(doc => doc.$id));
+        setWishlistedItems(wishlistedIds);
       } catch (error) {
-        console.error('Error fetching wishlist:', error);
+        console.error('Error fetching wishlisted items:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch wishlisted items',
+          variant: 'destructive',
+        });
       }
     };
 
-    fetchWishlist();
-  }, [user]);
+    fetchWishlistedItems();
+  }, [user, toast]);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -139,6 +135,29 @@ export default function Marketplace() {
       }
       return newSet;
     });
+  };
+
+  const deleteListing = async (listingId: string) => {
+    try {
+      await databases.deleteDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        listingId
+      );
+      // Refresh listings after deletion
+      fetchListings();
+      toast({
+        title: 'Success',
+        description: 'Listing deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting listing:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete listing',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

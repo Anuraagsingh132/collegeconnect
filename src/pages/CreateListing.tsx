@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ID } from "appwrite";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,12 @@ import Navbar from "@/components/Navbar";
 
 // Services and Context
 import { useAuth } from "@/lib/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { storage, databases } from "@/lib/appwrite";
+import { 
+  APPWRITE_DATABASE_ID,
+  APPWRITE_LISTINGS_COLLECTION_ID,
+  APPWRITE_LISTINGS_BUCKET_ID 
+} from "@/lib/config";
 import { createListing } from "@/lib/listingService";
 
 const listingFormSchema = z.object({
@@ -31,7 +37,7 @@ const listingFormSchema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/, { message: 'Invalid price format' })
     .refine((val) => parseFloat(val) >= 0, { message: 'Price must be positive' })
     .refine((val) => parseFloat(val) <= 1000000, { message: 'Price must be less than ₹10,00,000' }),
-  category: z.enum(['Books', 'Electronics', 'Fashion', 'Sports', 'Furniture', 'Other'], {
+  category: z.enum(['Books', 'Electronics', 'Fashion', 'Sports', 'Furniture', 'Food', 'Other'], {
     required_error: 'Please select a category',
   }),
   condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor'], {
@@ -41,10 +47,6 @@ const listingFormSchema = z.object({
     .string()
     .min(20, { message: 'Description must be at least 20 characters' })
     .max(2000, { message: 'Description must be less than 2000 characters' }),
-  location: z
-    .string()
-    .optional()
-    .transform(val => val || undefined),
 });
 
 const categories = [
@@ -53,6 +55,7 @@ const categories = [
   { value: 'Fashion', label: 'Fashion' },
   { value: 'Sports', label: 'Sports' },
   { value: 'Furniture', label: 'Furniture' },
+  { value: 'Food', label: 'Food' },
   { value: 'Other', label: 'Other' },
 ] as const;
 
@@ -80,10 +83,9 @@ export default function CreateListing() {
     defaultValues: {
       title: "",
       price: "",
-      category: "",
-      condition: "",
+      category: "Other",
+      condition: "good",
       description: "",
-      location: "",
     },
   });
 
@@ -245,75 +247,35 @@ export default function CreateListing() {
 
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
 
-  const uploadImagesToSupabase = async (listingId: string) => {
-    if (images.length === 0) return [];
-    
+  const uploadImages = async (listingId: string) => {
     setUploadingImages(true);
+    const uploadedImageIds: string[] = [];
     
     try {
-      // Create the bucket if it doesn't exist (this will fail silently if already exists)
-      await supabase.storage.createBucket('listings', {
-        public: true,
-        fileSizeLimit: 5 * 1024 * 1024, // 5MB
-      }).catch(err => console.log('Bucket already exists or other error:', err));
-      
-      const uploadPromises = images.map(async (file, index) => {
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${user!.id}/${listingId}/${index}.${fileExt}`;
-        
-        try {
-          // Update progress for this file
-          const fileId = `${index}-${file.name}`;
-          setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-
-          // Upload with progress tracking
-          const { data, error } = await supabase.storage
-            .from('listings')
-            .upload(filePath, file, {
-              cacheControl: '3600',
-              upsert: true
-            });
-          
-          if (error) {
-            console.error('Error uploading image:', error);
-            toast({
-              title: 'Upload Error',
-              description: `Failed to upload ${file.name}: ${error.message}`,
-              variant: 'destructive',
-            });
-            return null;
-          }
-
-          // Update progress to complete
-          setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
-          
-          // Get the public URL
-          const { data: urlData } = supabase.storage.from('listings').getPublicUrl(filePath);
-          return urlData.publicUrl;
-        } catch (error: any) {
-          console.error('Error in image upload:', error);
-          toast({
-            title: 'Upload Error',
-            description: `Failed to upload ${file.name}: ${error.message || 'Unknown error'}`,
-            variant: 'destructive',
-          });
-          return null;
+        for (const file of images) {
+            const fileId = ID.unique();
+            await storage.createFile(
+                APPWRITE_LISTINGS_BUCKET_ID,
+                fileId,
+                file
+            );
+            uploadedImageIds.push(fileId);
         }
-      });
-      
-      const imagePaths = await Promise.all(uploadPromises);
-      return imagePaths.filter(path => path !== null);
-    } catch (error: any) {
-      console.error('Error in uploadImagesToSupabase:', error);
-      toast({
-        title: 'Upload Error',
-        description: `Failed to initialize image upload: ${error.message || 'Unknown error'}`,
-        variant: 'destructive',
-      });
-      return [];
+        
+        // Update the listing with image IDs
+        await databases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            APPWRITE_LISTINGS_COLLECTION_ID,
+            listingId,
+            { images: uploadedImageIds }
+        );
+        
+        return uploadedImageIds;
+    } catch (error) {
+        console.error('Error uploading images:', error);
+        throw error;
     } finally {
-      setUploadingImages(false);
-      setUploadProgress({});
+        setUploadingImages(false);
     }
   };
   
@@ -361,7 +323,6 @@ const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
       condition: values.condition,
       description: values.description.trim(),
       status: 'active' as const,
-      location: values.location?.trim() || null,
     };
     
     console.log('Prepared listing data:', listingData);
@@ -515,20 +476,6 @@ const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Location</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Where is this item located?" {...field} />
-                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}

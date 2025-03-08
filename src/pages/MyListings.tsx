@@ -8,7 +8,12 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Edit, Trash2, Eye } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/lib/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { databases } from "@/lib/appwrite";
+import { Query } from 'appwrite';
+import { 
+    APPWRITE_DATABASE_ID,
+    APPWRITE_LISTINGS_COLLECTION_ID 
+} from "@/lib/config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,26 +42,28 @@ export default function MyListings() {
       setIsLoading(true);
       try {
         // Fetch active listings
-        const { data: active, error: activeError } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('seller_id', user.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
-        
-        if (activeError) throw activeError;
-        setActiveListings(active || []);
+        const activeResponse = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          [
+            Query.equal('seller_id', user.$id),
+            Query.equal('status', 'active'),
+            Query.orderDesc('created_at')
+          ]
+        );
+        setActiveListings(activeResponse.documents || []);
         
         // Fetch sold listings
-        const { data: sold, error: soldError } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('seller_id', user.id)
-          .eq('status', 'sold')
-          .order('created_at', { ascending: false });
-        
-        if (soldError) throw soldError;
-        setSoldListings(sold || []);
+        const soldResponse = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_LISTINGS_COLLECTION_ID,
+          [
+            Query.equal('seller_id', user.$id),
+            Query.equal('status', 'sold'),
+            Query.orderDesc('created_at')
+          ]
+        );
+        setSoldListings(soldResponse.documents || []);
       } catch (error: any) {
         console.error("Error fetching listings:", error);
         toast({
@@ -76,16 +83,15 @@ export default function MyListings() {
     setDeletingId(id);
     try {
       // Delete the listing
-      const { error } = await supabase
-        .from('listings')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      await databases.deleteDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        id
+      );
       
       // Remove from state
-      setActiveListings(prev => prev.filter(listing => listing.id !== id));
-      setSoldListings(prev => prev.filter(listing => listing.id !== id));
+      setActiveListings(prev => prev.filter(listing => listing.$id !== id));
+      setSoldListings(prev => prev.filter(listing => listing.$id !== id));
       
       toast({
         title: "Listing deleted",
@@ -106,18 +112,21 @@ export default function MyListings() {
   const markAsSold = async (id: string) => {
     try {
       // Update the listing status
-      const { error } = await supabase
-        .from('listings')
-        .update({ status: 'sold' })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        id,
+        {
+          status: 'sold',
+          updated_at: new Date().toISOString()
+        }
+      );
       
       // Move from active to sold in state
-      const listing = activeListings.find(item => item.id === id);
+      const listing = activeListings.find(item => item.$id === id);
       if (listing) {
         listing.status = 'sold';
-        setActiveListings(prev => prev.filter(item => item.id !== id));
+        setActiveListings(prev => prev.filter(item => item.$id !== id));
         setSoldListings(prev => [listing, ...prev]);
       }
       
@@ -138,18 +147,21 @@ export default function MyListings() {
   const reactivateListing = async (id: string) => {
     try {
       // Update the listing status
-      const { error } = await supabase
-        .from('listings')
-        .update({ status: 'active' })
-        .eq('id', id);
-      
-      if (error) throw error;
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        APPWRITE_LISTINGS_COLLECTION_ID,
+        id,
+        {
+          status: 'active',
+          updated_at: new Date().toISOString()
+        }
+      );
       
       // Move from sold to active in state
-      const listing = soldListings.find(item => item.id === id);
+      const listing = soldListings.find(item => item.$id === id);
       if (listing) {
         listing.status = 'active';
-        setSoldListings(prev => prev.filter(item => item.id !== id));
+        setSoldListings(prev => prev.filter(item => item.$id !== id));
         setActiveListings(prev => [listing, ...prev]);
       }
       
@@ -182,7 +194,7 @@ export default function MyListings() {
   }
 
   const renderListingCard = (listing: any, isSold = false) => (
-    <Card key={listing.id} className="overflow-hidden">
+    <Card key={listing.$id} className="overflow-hidden">
       <div className="aspect-video w-full overflow-hidden bg-muted">
         {listing.images && listing.images.length > 0 ? (
           <img
@@ -211,7 +223,7 @@ export default function MyListings() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(`/product/${listing.id}`)}
+          onClick={() => navigate(`/product/${listing.$id}`)}
         >
           <Eye className="mr-2 h-4 w-4" />
           View
@@ -220,7 +232,7 @@ export default function MyListings() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => reactivateListing(listing.id)}
+            onClick={() => reactivateListing(listing.$id)}
           >
             Reactivate
           </Button>
@@ -229,7 +241,7 @@ export default function MyListings() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/edit-listing/${listing.id}`)}
+              onClick={() => navigate(`/edit-listing/${listing.$id}`)}
             >
               <Edit className="mr-2 h-4 w-4" />
               Edit
@@ -237,7 +249,7 @@ export default function MyListings() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => markAsSold(listing.id)}
+              onClick={() => markAsSold(listing.$id)}
             >
               Mark as Sold
             </Button>
@@ -246,27 +258,26 @@ export default function MyListings() {
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" size="sm">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {deletingId === listing.$id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete your listing
-                and remove it from our servers.
+                This action cannot be undone. This will permanently delete your listing.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => handleDelete(listing.id)}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {deletingId === listing.id ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
+              <AlertDialogAction onClick={() => handleDelete(listing.$id)}>
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -279,57 +290,59 @@ export default function MyListings() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container py-12">
-        <div className="flex justify-between items-center mb-6">
+      <div className="container py-8">
+        <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">My Listings</h1>
           <Button onClick={() => navigate("/create-listing")}>
             <Plus className="mr-2 h-4 w-4" />
-            Create New Listing
+            Create Listing
           </Button>
         </div>
 
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="active">Active Listings</TabsTrigger>
-            <TabsTrigger value="sold">Sold Listings</TabsTrigger>
+        <Tabs defaultValue="active">
+          <TabsList>
+            <TabsTrigger value="active">
+              Active ({activeListings.length})
+            </TabsTrigger>
+            <TabsTrigger value="sold">
+              Sold ({soldListings.length})
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="active">
+
+          <TabsContent value="active" className="mt-6">
             {isLoading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : activeListings.length === 0 ? (
               <div className="text-center py-12">
-                <h2 className="text-xl font-medium mb-2">No active listings</h2>
                 <p className="text-muted-foreground mb-4">
-                  You don't have any active listings at the moment.
+                  You don't have any active listings
                 </p>
                 <Button onClick={() => navigate("/create-listing")}>
                   Create Your First Listing
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {activeListings.map(listing => renderListingCard(listing))}
               </div>
             )}
           </TabsContent>
-          
-          <TabsContent value="sold">
+
+          <TabsContent value="sold" className="mt-6">
             {isLoading ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : soldListings.length === 0 ? (
               <div className="text-center py-12">
-                <h2 className="text-xl font-medium mb-2">No sold listings</h2>
                 <p className="text-muted-foreground">
-                  You haven't sold any items yet.
+                  You don't have any sold listings
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {soldListings.map(listing => renderListingCard(listing, true))}
               </div>
             )}
