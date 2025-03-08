@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { FcGoogle } from "react-icons/fc";
 import { signIn, signInWithGoogle } from "@/lib/appwrite";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -14,13 +15,14 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshUser } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data, error } = await signIn(email, password);
+      const { data, error } = await signIn(email, password, refreshUser);
       
       if (error) {
         console.error("SignIn error:", error);
@@ -54,7 +56,7 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { error } = await signInWithGoogle();
+      const { error } = await signInWithGoogle(refreshUser);
       
       if (error) {
         console.error("Google SignIn error:", error);
