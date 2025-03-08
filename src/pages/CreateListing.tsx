@@ -467,7 +467,6 @@ const onSubmit = async (values: z.infer<typeof listingFormSchema>) => {
                             <Input
                               type="file"
                               accept="image/*"
-                              capture="user"
                               multiple
                               onChange={handleImageUpload}
                               className="hidden"
