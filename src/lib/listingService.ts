@@ -31,16 +31,34 @@ export async function createListing(
     images: File[],
     user: Models.User<Models.Preferences>
 ): Promise<ListingData | null> {
-    // Generate a unique ID for the listing
-    const listingId = ID.unique();
-    console.log('Creating listing with ID:', listingId);
-    
     try {
-        // Step 1: Upload images if any
-        const imageIds = await uploadListingImages(images);
-        console.log('Uploaded image IDs:', imageIds);
+        const listingId = ID.unique();
+        console.log(`Creating listing with ID: ${listingId}`);
         
-        // Step 2: Create the listing in the database
+        // Upload images first
+        let imageIds: string[] = [];
+        
+        if (images && images.length > 0) {
+            try {
+                // Log image details before upload
+                images.forEach((img, index) => {
+                    console.log(`Image ${index} details:`, {
+                        name: img.name,
+                        size: img.size,
+                        type: img.type,
+                        lastModified: img.lastModified
+                    });
+                });
+                
+                imageIds = await uploadListingImages(images);
+                console.log(`Uploaded image IDs:`, imageIds);
+            } catch (imageError) {
+                console.error("Error uploading images:", imageError);
+                imageIds = [];
+            }
+        }
+        
+        // Create listing document
         const response = await databases.createDocument(
             APPWRITE_DATABASE_ID,
             APPWRITE_LISTINGS_COLLECTION_ID,
@@ -53,7 +71,7 @@ export async function createListing(
                 price: listingData.price,
                 category: listingData.category,
                 condition: listingData.condition,
-                status: 'active', // Ensure status is set
+                status: 'active',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }
@@ -176,25 +194,51 @@ export async function uploadListingImages(images: File[]): Promise<string[]> {
         return [];
     }
     
-    // Upload images one by one
     const uploadedIds: string[] = [];
     
     for (let i = 0; i < images.length; i++) {
         try {
             const file = images[i];
-            const fileId = ID.unique();
+            
+            // Validate file
+            if (!file || !file.size || !file.type) {
+                console.error(`Invalid file at index ${i}`);
+                continue;
+            }
             
             console.log(`Uploading image ${i+1}/${images.length}: ${file.name}`);
+            console.log(`File details:`, {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastModified: file.lastModified
+            });
+
+            // Convert File to Blob if needed
+            const blob = new Blob([file], { type: file.type });
             
-            const response = await storage.createFile(
+            // Create a new File from the Blob
+            const fileToUpload = new File([blob], file.name, {
+                type: file.type,
+                lastModified: file.lastModified
+            });
+
+            // Verify the file is valid
+            if (!fileToUpload.size) {
+                throw new Error('Invalid file size after conversion');
+            }
+
+            const result = await storage.createFile(
                 APPWRITE_LISTINGS_BUCKET_ID,
-                fileId,
-                file
+                ID.unique(),
+                fileToUpload
             );
             
-            uploadedIds.push(response.$id);
-        } catch (e) {
-            console.error(`Error processing image ${i}:`, e);
+            uploadedIds.push(result.$id);
+            console.log(`Successfully uploaded image ${i+1}: ${result.$id}`);
+        } catch (error) {
+            console.error(`Error processing image ${i}:`, error);
+            // Continue with next image
         }
     }
     
