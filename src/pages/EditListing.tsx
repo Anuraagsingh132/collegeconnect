@@ -44,6 +44,11 @@ const listingFormSchema = z.object({
   }),
   description: z
     .string()
+    description: z
+    .string()
+    .min(10, { message: 'Description must be at least 10 characters' })
+    .max(2000, { message: 'Description must be less than 2000 characters' }),
+});
     .max(2000, { message: 'Description must be less than 2000 characters' }),
 });
 
