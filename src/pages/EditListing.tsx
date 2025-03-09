@@ -49,8 +49,7 @@ const listingFormSchema = z.object({
     .min(10, { message: 'Description must be at least 10 characters' })
     .max(2000, { message: 'Description must be less than 2000 characters' }),
 });
-    .max(2000, { message: 'Description must be less than 2000 characters' }),
-});
+    
 
 const categories = [
   { value: 'Books', label: 'Books' },
